@@ -1,0 +1,12 @@
+{
+  "name": "מרקטפלייס קבלני עפר",
+  "short_name": "קבלני עפר",
+  "description": "התאמות בין קבלנים לחול, חמרה ומצע — לפי מיקום, כמות וזמן",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F3F1EC",
+  "theme_color": "#D98E04",
+  "dir": "rtl",
+  "lang": "he",
+  "icons": []
+}
