@@ -44,7 +44,7 @@ alter table public.interest_events
 -- listing, WhatsApp the owner asking if it's still relevant.
 --
 -- This runs the send-relevance-check Edge Function every 10 minutes via
--- pg_cron + pg_net. Replace <PROJECT_REF> and <SERVICE_ROLE_KEY> below
+-- pg_cron + pg_net. Replace hrjxojobkssyszeycnbd andeyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhyanhvam9ia3NzeXN6ZXljbmJkIiwicm9sZSI6InNlcnZpY2Vfcm9sZS below
 -- with your own values (Project Settings → API) before running this part.
 -- ============================================================
 
@@ -56,10 +56,10 @@ select cron.schedule(
   '*/10 * * * *',
   $$
   select net.http_post(
-    url := 'https://<PROJECT_REF>.supabase.co/functions/v1/send-relevance-check',
+    url := 'https://hrjxojobkssyszeycnbd.supabase.co/functions/v1/send-relevance-check',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'Authorization', 'Bearer <SERVICE_ROLE_KEY>'
+      'Authorization', 'BearereyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhyanhvam9ia3NzeXN6ZXljbmJkIiwicm9sZSI6InNlcnZpY2Vfcm9sZS'
     ),
     body := '{}'::jsonb
   );
