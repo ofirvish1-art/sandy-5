@@ -33,7 +33,11 @@ Deno.serve(async () => {
 
       const dateLabel = new Date(event.event_date).toLocaleDateString("he-IL", { day: "numeric", month: "long" });
       const timeLabel = new Date(event.reminder_at).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
-      const message = `תזכורת מחולית: ב-${dateLabel} בשעה ${timeLabel} — ${event.title}`;
+      // Item 3: phrase the reminder relative to how far out it was set —
+      // "אותו היום" reminders say "היום", "יום לפני" say "מחר", etc.
+      const relativePhrase =
+        { sameDay: "היום", dayBefore: "מחר", twoDaysBefore: "בעוד יומיים" }[event.reminder_offset] || `ב-${dateLabel}`;
+      const message = `תזכורת מחולית: ${relativePhrase} בשעה ${timeLabel} — ${event.title}`;
 
       try {
         await sendWhatsApp(phone, message);

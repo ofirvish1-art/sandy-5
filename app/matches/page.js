@@ -87,20 +87,20 @@ export default function ExplorePage() {
       <h1 className="font-display font-black text-2xl mb-4">מודעות</h1>
 
       {matchedForYou.length > 0 && (
-        <div className="mb-6">
-          <h2 className="font-display font-bold text-lg mb-2">✨ מודעות מתאימות לך</h2>
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4">
+        <div className="mb-6 -mx-4 px-4 py-5 bg-olive-night rounded-b-3xl">
+          <h2 className="font-display font-black text-lg text-cream mb-3">✨ מודעות מתאימות לך</h2>
+          <div className="flex gap-3 overflow-x-auto pb-1">
             {matchedForYou.map(({ listing, percent }) => (
               <Link
                 key={listing.id}
-                href="#"
-                className="shrink-0 w-52 card p-3 bg-sage/10 border-sage"
+                href={`/listing/${listing.id}`}
+                className="shrink-0 w-60 bg-white rounded-2xl p-4 shadow-lg active:scale-[0.98] transition"
               >
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="chip bg-olive text-cream">{percent}% התאמה</span>
-                  <span className="chip bg-white text-olive">{listing.type === "supply" ? "היצע" : "ביקוש"}</span>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="chip bg-sage text-olive-night font-black">{percent}% התאמה</span>
+                  <span className="chip bg-olive/10 text-olive">{listing.type === "supply" ? "היצע" : "ביקוש"}</span>
                 </div>
-                <div className="font-bold text-sm">{materialLabel(listing.material_type)}</div>
+                <div className="font-bold">{materialLabel(listing.material_type)}</div>
                 <div className="text-xs text-forest/50 mt-1">
                   {listing.quantity_cubic} קו״ב · {listing.location_text}
                 </div>
@@ -115,7 +115,7 @@ export default function ExplorePage() {
         onClick={() => setFiltersOpen((o) => !o)}
         className="btn-secondary w-full mb-3 justify-between"
       >
-        <span>🎚️ סינון</span>
+        <span>🎚️ {filtersOpen ? "הסתר סינון" : "סינון"}</span>
         <span>{filtersOpen ? "▲" : "▼"}</span>
       </button>
       {filtersOpen && (

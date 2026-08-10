@@ -27,7 +27,14 @@ export default function CalendarPage() {
   const [events, setEvents] = useState([]);
   const [selectedDate, setSelectedDate] = useState(ymd(new Date()));
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newEvent, setNewEvent] = useState({ title: "", color: COLOR_SWATCHES[0], reminderTime: "" });
+  const [newEvent, setNewEvent] = useState({
+    title: "",
+    color: COLOR_SWATCHES[0],
+    reminderOffset: "none", // none | sameDay | dayBefore | twoDaysBefore | custom
+    reminderTime: "09:00",
+    customDate: "",
+    customTime: "09:00",
+  });
 
   const load = useCallback(async () => {
     const { data: listingRows } = await supabase
@@ -73,9 +80,26 @@ export default function CalendarPage() {
     return cells;
   }, [cursor]);
 
+  // Item 3: flexible reminder offsets — same day, day before, 2 days
+  // before, or a fully custom date + time.
+  function computeReminderAt() {
+    const { reminderOffset, reminderTime, customDate, customTime } = newEvent;
+    if (reminderOffset === "none") return null;
+    if (reminderOffset === "custom") {
+      return customDate ? `${customDate}T${customTime || "09:00"}:00` : null;
+    }
+    const base = new Date(`${selectedDate}T00:00:00`);
+    const daysBefore = { sameDay: 0, dayBefore: 1, twoDaysBefore: 2 }[reminderOffset] ?? 0;
+    base.setDate(base.getDate() - daysBefore);
+    const y = base.getFullYear();
+    const m = String(base.getMonth() + 1).padStart(2, "0");
+    const d = String(base.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}T${reminderTime || "09:00"}:00`;
+  }
+
   async function addEvent() {
     if (!user || !newEvent.title.trim()) return;
-    const reminderAt = newEvent.reminderTime ? `${selectedDate}T${newEvent.reminderTime}:00` : null;
+    const reminderAt = computeReminderAt();
     const { data } = await supabase
       .from("calendar_events")
       .insert({
@@ -84,11 +108,12 @@ export default function CalendarPage() {
         event_date: selectedDate,
         color: newEvent.color,
         reminder_at: reminderAt,
+        reminder_offset: newEvent.reminderOffset !== "none" ? newEvent.reminderOffset : null,
       })
       .select()
       .single();
     if (data) setEvents((e) => [...e, data]);
-    setNewEvent({ title: "", color: COLOR_SWATCHES[0], reminderTime: "" });
+    setNewEvent({ title: "", color: COLOR_SWATCHES[0], reminderOffset: "none", reminderTime: "09:00", customDate: "", customTime: "09:00" });
     setShowAddForm(false);
   }
 
@@ -202,15 +227,56 @@ export default function CalendarPage() {
             </div>
             <div>
               <label className="field-label">תזכורת בוואטסאפ (רשות)</label>
-              <input
-                className="field-input"
-                type="time"
-                value={newEvent.reminderTime}
-                onChange={(e) => setNewEvent((f) => ({ ...f, reminderTime: e.target.value }))}
-              />
-              <p className="text-xs text-forest/40 mt-1">
-                אם תבחר שעה, תישלח הודעת וואטסאפ תזכורת בשעה הזו ביום {selectedDate}.
-              </p>
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                {[
+                  ["none", "בלי תזכורת"],
+                  ["sameDay", "אותו היום"],
+                  ["dayBefore", "יום לפני"],
+                  ["twoDaysBefore", "יומיים לפני"],
+                  ["custom", "תאריך ושעה מותאמים"],
+                ].map(([v, l]) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setNewEvent((f) => ({ ...f, reminderOffset: v }))}
+                    className={`text-xs px-2 py-2 rounded-lg border font-semibold ${
+                      newEvent.reminderOffset === v ? "bg-olive text-cream border-olive" : "bg-white border-sage-dark/50"
+                    }`}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+
+              {["sameDay", "dayBefore", "twoDaysBefore"].includes(newEvent.reminderOffset) && (
+                <input
+                  className="field-input"
+                  type="time"
+                  value={newEvent.reminderTime}
+                  onChange={(e) => setNewEvent((f) => ({ ...f, reminderTime: e.target.value }))}
+                />
+              )}
+
+              {newEvent.reminderOffset === "custom" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    className="field-input"
+                    type="date"
+                    value={newEvent.customDate}
+                    onChange={(e) => setNewEvent((f) => ({ ...f, customDate: e.target.value }))}
+                  />
+                  <input
+                    className="field-input"
+                    type="time"
+                    value={newEvent.customTime}
+                    onChange={(e) => setNewEvent((f) => ({ ...f, customTime: e.target.value }))}
+                  />
+                </div>
+              )}
+
+              {newEvent.reminderOffset !== "none" && (
+                <p className="text-xs text-forest/40 mt-1">תישלח הודעת וואטסאפ תזכורת בזמן שנבחר.</p>
+              )}
             </div>
             <div className="flex gap-2">
               <button onClick={() => setShowAddForm(false)} className="btn-secondary flex-1">ביטול</button>
