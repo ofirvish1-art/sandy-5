@@ -4,11 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { storeUser } from "@/lib/session";
+import LegalModal from "@/components/LegalModal";
+import { LEGAL_CONTENT } from "@/lib/legalContent";
 
 export default function RegisterPage() {
   const router = useRouter();
   const [form, setForm] = useState({ name: "", phone: "", email: "" });
-  const [consents, setConsents] = useState({ terms: false, privacy: false, contact: false });
+  const [consents, setConsents] = useState({ terms: false, privacy: false, contact: false, whatsapp: false });
+  const [legalOpen, setLegalOpen] = useState(null); // 'terms' | 'privacy' | null
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -19,7 +22,7 @@ export default function RegisterPage() {
     setConsents((c) => ({ ...c, [field]: !c[field] }));
   }
 
-  const allConsented = consents.terms && consents.privacy && consents.contact;
+  const allConsented = consents.terms && consents.privacy && consents.contact && consents.whatsapp;
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -45,6 +48,7 @@ export default function RegisterPage() {
           consent_terms: true,
           consent_privacy: true,
           consent_contact_disclosure: true,
+          consent_whatsapp_operational: true,
           consented_at: new Date().toISOString(),
         },
         { onConflict: "phone" }
@@ -66,11 +70,8 @@ export default function RegisterPage() {
   return (
     <main className="max-w-xl mx-auto px-4 pt-10 pb-6">
       <div className="text-center mb-6">
-        <div className="w-14 h-14 rounded-2xl bg-olive text-cream flex items-center justify-center font-display font-black text-2xl mx-auto mb-3">
-          ח
-        </div>
         <h1 className="font-display font-black text-2xl text-olive">חולית</h1>
-        <p className="text-forest/60 text-sm mt-1">מרקטפלייס עודפי עפר וחומרי מילוי</p>
+        <p className="text-forest/60 text-sm mt-1">יש עפר? צריך עפר? נפגשים בחולית.</p>
       </div>
 
       <div className="card p-5">
@@ -80,74 +81,48 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="field-label">שם מלא</label>
-            <input
-              className="field-input"
-              value={form.name}
-              onChange={(e) => update("name", e.target.value)}
-              placeholder="לדוגמה: יוסי כהן"
-            />
+            <input className="field-input" value={form.name} onChange={(e) => update("name", e.target.value)} placeholder="לדוגמה: יוסי כהן" />
           </div>
           <div>
             <label className="field-label">מספר טלפון</label>
-            <input
-              className="field-input"
-              dir="ltr"
-              value={form.phone}
-              onChange={(e) => update("phone", e.target.value)}
-              placeholder="050-1234567"
-            />
+            <input className="field-input" dir="ltr" value={form.phone} onChange={(e) => update("phone", e.target.value)} placeholder="050-1234567" />
           </div>
           <div>
             <label className="field-label">אימייל</label>
-            <input
-              className="field-input"
-              dir="ltr"
-              type="email"
-              value={form.email}
-              onChange={(e) => update("email", e.target.value)}
-              placeholder="name@example.com"
-            />
+            <input className="field-input" dir="ltr" type="email" value={form.email} onChange={(e) => update("email", e.target.value)} placeholder="name@example.com" />
           </div>
 
           <div className="space-y-2.5 pt-2 border-t border-sage-dark/30">
             <label className="flex items-start gap-2.5 text-sm">
-              <input
-                type="checkbox"
-                checked={consents.terms}
-                onChange={() => toggleConsent("terms")}
-                className="mt-0.5 w-5 h-5 accent-olive shrink-0"
-              />
+              <input type="checkbox" checked={consents.terms} onChange={() => toggleConsent("terms")} className="mt-0.5 w-5 h-5 accent-olive shrink-0" />
               <span>
                 קראתי ואני מאשר את{" "}
-                <a href="/profile#legal" className="text-olive underline font-semibold">
+                <button type="button" onClick={() => setLegalOpen("terms")} className="text-olive underline font-semibold">
                   תנאי השימוש
-                </a>
+                </button>
               </span>
             </label>
             <label className="flex items-start gap-2.5 text-sm">
-              <input
-                type="checkbox"
-                checked={consents.privacy}
-                onChange={() => toggleConsent("privacy")}
-                className="mt-0.5 w-5 h-5 accent-olive shrink-0"
-              />
+              <input type="checkbox" checked={consents.privacy} onChange={() => toggleConsent("privacy")} className="mt-0.5 w-5 h-5 accent-olive shrink-0" />
               <span>
                 קראתי ואני מאשר את{" "}
-                <a href="/profile#legal" className="text-olive underline font-semibold">
+                <button type="button" onClick={() => setLegalOpen("privacy")} className="text-olive underline font-semibold">
                   מדיניות הפרטיות
-                </a>
+                </button>
               </span>
             </label>
             <label className="flex items-start gap-2.5 text-sm">
-              <input
-                type="checkbox"
-                checked={consents.contact}
-                onChange={() => toggleConsent("contact")}
-                className="mt-0.5 w-5 h-5 accent-olive shrink-0"
-              />
+              <input type="checkbox" checked={consents.contact} onChange={() => toggleConsent("contact")} className="mt-0.5 w-5 h-5 accent-olive shrink-0" />
               <span>
                 אני מאשר כי פרטי הקשר והמיקום שאפרסם במודעות עשויים להיות מוצגים למשתמשים אחרים
                 לצורך יצירת קשר בנושא המודעה
+              </span>
+            </label>
+            <label className="flex items-start gap-2.5 text-sm">
+              <input type="checkbox" checked={consents.whatsapp} onChange={() => toggleConsent("whatsapp")} className="mt-0.5 w-5 h-5 accent-olive shrink-0" />
+              <span>
+                אני מסכים לקבל מחולית הודעות WhatsApp תפעוליות בנוגע למודעות, פניות, עסקאות,
+                שינויים בסטטוס ואבטחת החשבון.
               </span>
             </label>
           </div>
@@ -159,6 +134,12 @@ export default function RegisterPage() {
           </button>
         </form>
       </div>
+
+      <LegalModal
+        open={!!legalOpen}
+        content={legalOpen ? LEGAL_CONTENT[legalOpen] : null}
+        onClose={() => setLegalOpen(null)}
+      />
     </main>
   );
 }

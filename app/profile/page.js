@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { getStoredUser, storeUser, clearStoredUser } from "@/lib/session";
+import { LEGAL_CONTENT } from "@/lib/legalContent";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -124,37 +125,24 @@ export default function ProfilePage() {
       </div>
 
       <div id="legal" className="mt-8 pt-6 border-t border-sage-dark/30 space-y-4 text-sm text-forest/70">
-        <h2 className="font-display font-bold text-lg text-forest">אודות חולית ומידע משפטי</h2>
+        <h2 className="font-display font-bold text-lg text-forest">אודות ומידע משפטי</h2>
 
         <details className="card p-4">
-          <summary className="font-semibold cursor-pointer">תנאי שימוש</summary>
-          <p className="mt-2">
-            [כאן ייכנס נוסח תנאי השימוש המלא של חולית. יש להחליף טקסט זה בנוסח המשפטי הרשמי שקיבלת
-            מעורך דין, לפני פרסום האתר לציבור.]
-          </p>
+          <summary className="font-semibold cursor-pointer">{LEGAL_CONTENT.about.title}</summary>
+          <p className="mt-2 whitespace-pre-line">{LEGAL_CONTENT.about.body}</p>
         </details>
 
         <details className="card p-4">
-          <summary className="font-semibold cursor-pointer">מדיניות פרטיות</summary>
-          <p className="mt-2">
-            [כאן ייכנס נוסח מדיניות הפרטיות המלא, כולל אילו נתונים נאספים (שם, טלפון, מייל, מיקום),
-            כיצד הם מוצגים למשתמשים אחרים לצורך יצירת קשר, וכיצד ניתן לבקש מחיקת נתונים.]
-          </p>
+          <summary className="font-semibold cursor-pointer">{LEGAL_CONTENT.terms.title}</summary>
+          <p className="mt-2 whitespace-pre-line">{LEGAL_CONTENT.terms.body}</p>
         </details>
 
         <details className="card p-4">
-          <summary className="font-semibold cursor-pointer">אודות חולית</summary>
-          <p className="mt-2">
-            [כאן ייכנס טקסט "אודות" על חולית — מי מפעיל את הפלטפורמה, ומה תפקידה כמתווכת בין
-            קבלנים לגבי עודפי עפר וחומרי מילוי.]
-          </p>
+          <summary className="font-semibold cursor-pointer">{LEGAL_CONTENT.privacy.title}</summary>
+          <p className="mt-2 whitespace-pre-line">{LEGAL_CONTENT.privacy.body}</p>
         </details>
 
-        <p className="text-xs text-forest/40">
-          חולית משמשת כפלטפורמת תיווך בלבד בין קבלנים. חולית אינה צד לעסקה, אינה אחראית לאיכות
-          החומר, למשקל, לתנאי ההובלה או לכל מחלוקת בין הצדדים. יש לוודא עצמאית את כל פרטי העסקה
-          מול הצד השני לפני ביצועה. [נוסח זה הוא placeholder — יש להחליפו בנוסח משפטי מלא ומאושר.]
-        </p>
+        <p className="text-xs text-forest/40">{LEGAL_CONTENT.disclaimer}</p>
       </div>
     </main>
   );

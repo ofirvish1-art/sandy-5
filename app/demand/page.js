@@ -7,6 +7,7 @@ import { getStoredUser } from "@/lib/session";
 import { MATERIALS } from "@/lib/materials";
 import Wizard from "@/components/Wizard";
 import SuccessModal from "@/components/SuccessModal";
+import CityAutocomplete from "@/components/CityAutocomplete";
 
 const TOTAL_STEPS = 4;
 const RADII = ["10", "20", "50", "50+"];
@@ -24,8 +25,10 @@ export default function DemandPage() {
     material_type: MATERIALS[0],
     material_other: "",
     quantity_cubic: "",
-    price_type: "perCubic",
+    price_type: "", // item 7: no default — must be explicitly chosen
+    price_value: "",
     location_text: "",
+    region: null,
     latitude: null,
     longitude: null,
     max_radius_km: "20",
@@ -44,10 +47,25 @@ export default function DemandPage() {
       setForm((f) => ({ ...f, latitude: pos.coords.latitude, longitude: pos.coords.longitude }))
     );
   }
+  function pickCity(city) {
+    setForm((f) => ({ ...f, location_text: city.cityName, latitude: city.lat, longitude: city.lng, region: city.region }));
+  }
+  function updateAndMaybeAdvance(field, value, isSingleSelectStep) {
+    update(field, value);
+    if (isSingleSelectStep && value !== "specific") {
+      setTimeout(() => setStep((s) => Math.min(TOTAL_STEPS - 1, s + 1)), 300);
+    }
+  }
+
+  const priceNeedsValue = form.price_type === "perCubic";
+  const hasLocation = !!form.location_text.trim() || (form.latitude != null && form.longitude != null);
 
   const stepValid = [
-    !!form.quantity_cubic && (form.material_type !== "אחר" || form.material_other.trim()),
-    !!form.location_text.trim(),
+    !!form.quantity_cubic &&
+      (form.material_type !== "אחר" || form.material_other.trim()) &&
+      !!form.price_type &&
+      (!priceNeedsValue || !!form.price_value),
+    hasLocation,
     form.urgency !== "specific" || !!form.specific_date,
     true,
   ][step];
@@ -76,7 +94,9 @@ export default function DemandPage() {
       material_type: materialLabel,
       quantity_cubic: Number(form.quantity_cubic),
       price_type: form.price_type,
+      price_value: priceNeedsValue ? Number(form.price_value) : null,
       location_text: form.location_text.trim(),
+      region: form.region,
       latitude: form.latitude,
       longitude: form.longitude,
       max_radius_km: form.max_radius_km === "50+" ? null : Number(form.max_radius_km),
@@ -134,13 +154,20 @@ export default function DemandPage() {
                 <input className="field-input" type="number" value={form.quantity_cubic} onChange={(e) => update("quantity_cubic", e.target.value)} placeholder="500" />
               </div>
               <div>
-                <label className="field-label">מחיר</label>
+                <label className="field-label">מחיר *</label>
                 <select className="field-input" value={form.price_type} onChange={(e) => update("price_type", e.target.value)}>
+                  <option value="" disabled>— בחר סוג מחיר —</option>
                   <option value="perCubic">מחיר לקו״ב</option>
                   <option value="flexible">מחיר גמיש</option>
                   <option value="freePickup">חינם</option>
                   <option value="total">יקבע בהמשך</option>
                 </select>
+              </div>
+              <div className={`grid transition-all duration-300 ${priceNeedsValue ? "grid-rows-[1fr] opacity-100 mt-1" : "grid-rows-[0fr] opacity-0"}`}>
+                <div className="overflow-hidden">
+                  <label className="field-label">הזן מחיר ב-₪ לקו״ב</label>
+                  <input className="field-input" type="number" value={form.price_value} onChange={(e) => update("price_value", e.target.value)} placeholder="35" />
+                </div>
               </div>
             </>
           )}
@@ -148,11 +175,12 @@ export default function DemandPage() {
           {step === 1 && (
             <>
               <div>
-                <label className="field-label">כתובת / עיר</label>
-                <input className="field-input" value={form.location_text} onChange={(e) => update("location_text", e.target.value)} placeholder="עיר / כתובת" />
+                <label className="field-label">עיר</label>
+                <CityAutocomplete value={form.location_text} onSelect={pickCity} placeholder="התחל להקליד שם עיר…" />
               </div>
+              <div className="text-center text-xs text-forest/40">— או —</div>
               <button type="button" onClick={useMyLocation} className="text-sm text-olive font-semibold">
-                📍 {form.latitude ? "המיקום נקלט" : "השתמש במיקום הנוכחי שלי"}
+                📍 {form.latitude && !form.location_text ? "המיקום הנוכחי נקלט" : "השתמש במיקום הנוכחי שלי / נקודה במפה"}
               </button>
               <div>
                 <label className="field-label">רדיוס חיפוש</label>
@@ -177,7 +205,7 @@ export default function DemandPage() {
           {step === 2 && (
             <div>
               <label className="field-label">מועד</label>
-              <select className="field-input" value={form.urgency} onChange={(e) => update("urgency", e.target.value)}>
+              <select className="field-input" value={form.urgency} onChange={(e) => updateAndMaybeAdvance("urgency", e.target.value, true)}>
                 <option value="now">היום</option>
                 <option value="tomorrow">מחר</option>
                 <option value="week">השבוע</option>

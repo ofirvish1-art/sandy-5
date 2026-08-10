@@ -2,6 +2,7 @@ import { Rubik, Assistant } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import AuthGate from "@/components/AuthGate";
+import { FilterProvider } from "@/contexts/FilterContext";
 
 const rubik = Rubik({
   subsets: ["hebrew", "latin"],
@@ -34,8 +35,10 @@ export default function RootLayout({ children }) {
     <html lang="he" dir="rtl" className={`${rubik.variable} ${assistant.variable}`}>
       <body className="font-body bg-cream text-forest min-h-screen">
         <AuthGate>
-          <div className="pb-20 md:pb-0 md:pr-20">{children}</div>
-          <BottomNav />
+          <FilterProvider>
+            <div className="pb-20 md:pb-0 md:pr-20">{children}</div>
+            <BottomNav />
+          </FilterProvider>
         </AuthGate>
       </body>
     </html>
