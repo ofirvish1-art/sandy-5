@@ -1,17 +1,12 @@
-const LABELS = {
-  sand: "חול",
-  hamra: "חמרה",
-  matza: "מצע",
-  other: "אחר",
-};
-
+// material_type is now free text (chosen from lib/materials.js or custom
+// "אחר" text), not a fixed enum — so this just displays it as-is.
 export function materialLabel(type) {
-  return LABELS[type] || "אחר";
+  return type || "אחר";
 }
 
 export default function MaterialBadge({ type }) {
   return (
-    <span className="inline-flex items-center rounded-lg bg-stone-100 px-2.5 py-1 text-xs font-bold text-stone-700">
+    <span className="inline-flex items-center rounded-lg bg-sage/40 px-2.5 py-1 text-xs font-bold text-olive">
       {materialLabel(type)}
     </span>
   );

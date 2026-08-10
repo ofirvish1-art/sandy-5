@@ -1,11 +1,11 @@
 {
-  "name": "מרקטפלייס קבלני עפר",
-  "short_name": "קבלני עפר",
-  "description": "התאמות בין קבלנים לחול, חמרה ומצע — לפי מיקום, כמות וזמן",
+  "name": "חולית — מרקטפלייס עודפי עפר",
+  "short_name": "חולית",
+  "description": "הפלטפורמה המובילה בישראל לקבלני עפר, עודפי חול וחומרי מילוי",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F3F1EC",
-  "theme_color": "#D98E04",
+  "background_color": "#F7F9F6",
+  "theme_color": "#3A523D",
   "dir": "rtl",
   "lang": "he",
   "icons": []

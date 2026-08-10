@@ -2,49 +2,58 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --stripe-color: #d98e04;
-}
-
-/* Signature element: a thin excavator-yellow hazard-stripe rule,
-   used once per screen under the page title — a nod to site-safety
-   tape on an earthworks lot, never used decoratively elsewhere. */
-.hazard-rule {
-  height: 6px;
-  border-radius: 999px;
-  background: repeating-linear-gradient(
-    135deg,
-    #d98e04 0px,
-    #d98e04 10px,
-    #f3f1ec 10px,
-    #f3f1ec 20px
-  );
+body {
+  @apply bg-cream text-forest;
 }
 
 .card {
-  @apply bg-white rounded-2xl border border-stone-200 shadow-sm;
+  @apply bg-white rounded-2xl border border-sage-dark/40 shadow-sm;
 }
 
 .btn-primary {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-white font-bold text-base active:scale-[0.98] transition disabled:opacity-50;
+  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-sage px-5 py-3 text-forest font-bold text-base active:scale-[0.98] transition disabled:opacity-50;
+}
+
+.btn-olive {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-olive px-5 py-3 text-white font-bold text-base active:scale-[0.98] transition disabled:opacity-50;
 }
 
 .btn-secondary {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-stone-100 px-5 py-3 text-stone-900 font-semibold text-base border border-stone-200 active:scale-[0.98] transition;
+  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-cream px-5 py-3 text-forest font-semibold text-base border border-sage-dark active:scale-[0.98] transition;
 }
 
-.btn-supply {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-supply-500 px-5 py-3 text-white font-bold text-base active:scale-[0.98] transition;
-}
-
-.btn-demand {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-demand-500 px-5 py-3 text-white font-bold text-base active:scale-[0.98] transition;
+.btn-ghost {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-forest/70 font-semibold text-sm;
 }
 
 .field-label {
-  @apply block text-sm font-semibold text-stone-800 mb-1.5;
+  @apply block text-sm font-semibold text-forest mb-1.5;
 }
 
 .field-input {
-  @apply w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent;
+  @apply w-full rounded-xl border border-sage-dark/60 bg-white px-4 py-3 text-base text-forest focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent;
+}
+
+.chip {
+  @apply inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-bold;
+}
+
+.chip-active {
+  @apply chip bg-status-active/60 text-olive;
+}
+
+.chip-pending {
+  @apply chip bg-status-pending/50 text-forest;
+}
+
+.chip-closed {
+  @apply chip bg-status-closed/60 text-forest/60;
+}
+
+.step-dot {
+  @apply w-2.5 h-2.5 rounded-full bg-sage-dark/40;
+}
+
+.step-dot-active {
+  @apply w-2.5 h-2.5 rounded-full bg-olive;
 }

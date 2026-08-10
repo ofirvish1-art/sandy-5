@@ -1,118 +1,150 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { getStoredUser } from "@/lib/session";
-import { buildMatches } from "@/lib/matching";
+import { haversineKm } from "@/lib/matching";
+import { MATERIALS } from "@/lib/materials";
 import ListingCard from "@/components/ListingCard";
-import { materialLabel } from "@/components/MaterialBadge";
+import SuccessModal from "@/components/SuccessModal";
 
-const SCORE_LABEL = { high: "התאמה גבוהה", medium: "התאמה בינונית", low: "התאמה נמוכה" };
-const SCORE_COLOR = {
-  high: "bg-supply-500 text-white",
-  medium: "bg-brand-500 text-white",
-  low: "bg-stone-300 text-stone-800",
-};
-
-export default function MatchesPage() {
-  const [user, setUser] = useState(null);
-  const [matches, setMatches] = useState([]);
+export default function ExplorePage() {
+  const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [myLocation, setMyLocation] = useState(null);
+  const [interestSent, setInterestSent] = useState(false);
+
+  const [filters, setFilters] = useState({
+    type: "all", // all | supply | demand
+    material: "all",
+    priceType: "all",
+    transport: "all",
+    loading: "all",
+    radiusKm: "all",
+  });
 
   useEffect(() => {
-    const u = getStoredUser();
-    setUser(u);
-    if (u) loadMatches(u);
-    else setLoading(false);
+    async function load() {
+      const { data } = await supabase.from("listings").select("*").eq("status", "open").order("created_at", { ascending: false });
+      setListings(data || []);
+      setLoading(false);
+    }
+    load();
   }, []);
 
-  async function loadMatches(u) {
-    setLoading(true);
-    const { data: listings } = await supabase
-      .from("listings")
-      .select("*")
-      .eq("status", "open");
+  function updateFilter(field, value) {
+    setFilters((f) => ({ ...f, [field]: value }));
+  }
 
-    const supply = (listings || []).filter((l) => l.type === "supply");
-    const demand = (listings || []).filter((l) => l.type === "demand");
-
-    const all = buildMatches(supply, demand);
-    // Only show matches touching one of the current user's own listings —
-    // that's "relevant to me" per the spec.
-    const mine = all.filter(
-      (m) => m.supply.user_id === u.id || m.demand.user_id === u.id
-    );
-
-    // Persist newly-seen matches so the notify webhook (on insert) can fire,
-    // and so admin/analytics can see match volume over time. Cheap upsert
-    // keyed on the pair, ignore conflicts.
-    if (mine.length) {
-      await supabase.from("matches").upsert(
-        mine.map((m) => ({
-          supply_listing_id: m.supply.id,
-          demand_listing_id: m.demand.id,
-          score: m.score,
-          distance_km: m.distanceKm,
-        })),
-        { onConflict: "supply_listing_id,demand_listing_id", ignoreDuplicates: true }
-      );
+  const filtered = useMemo(() => {
+    let list = listings;
+    if (filters.type !== "all") list = list.filter((l) => l.type === filters.type);
+    if (filters.material !== "all") list = list.filter((l) => l.material_type === filters.material);
+    if (filters.priceType !== "all") list = list.filter((l) => l.price_type === filters.priceType);
+    if (filters.transport !== "all") list = list.filter((l) => l.transport === filters.transport);
+    if (filters.loading !== "all") {
+      const wantsLoading = filters.loading === "yes";
+      list = list.filter((l) => !!l.has_loading === wantsLoading);
     }
 
-    setMatches(mine);
-    setLoading(false);
-  }
+    let withDistance = list.map((l) => ({
+      ...l,
+      _dist: myLocation ? haversineKm(myLocation.lat, myLocation.lng, l.latitude, l.longitude) : null,
+    }));
 
-  async function handleStatusChange(listing, status) {
-    await supabase.from("listings").update({ status }).eq("id", listing.id);
-    if (user) loadMatches(user);
-  }
+    if (filters.radiusKm !== "all" && myLocation) {
+      const r = Number(filters.radiusKm);
+      withDistance = withDistance.filter((l) => l._dist == null || l._dist <= r);
+    }
+    if (myLocation) withDistance.sort((a, b) => (a._dist ?? 9999) - (b._dist ?? 9999));
 
-  if (!user) {
-    return (
-      <main className="max-w-xl mx-auto px-4 pt-8 pb-6">
-        <h1 className="font-display font-black text-2xl">התאמות רלוונטיות</h1>
-        <div className="hazard-rule my-4" />
-        <p className="text-stone-600">צריך להירשם קודם כדי לראות התאמות.</p>
-      </main>
-    );
-  }
+    return withDistance;
+  }, [listings, filters, myLocation]);
 
   return (
     <main className="max-w-xl mx-auto px-4 pt-8 pb-6">
-      <h1 className="font-display font-black text-2xl">התאמות רלוונטיות</h1>
-      <div className="hazard-rule my-4" />
+      <h1 className="font-display font-black text-2xl mb-4">התאמות</h1>
 
-      {loading && <p className="text-stone-500">טוען…</p>}
-      {!loading && matches.length === 0 && (
-        <p className="text-stone-500">
-          אין עדיין התאמות. פרסם היצע או ביקוש כדי להתחיל לראות התאמות כאן.
-        </p>
-      )}
+      {/* Global filter bar */}
+      <div className="card p-4 space-y-3 mb-5">
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            ["all", "הכל"],
+            ["supply", "היצע"],
+            ["demand", "ביקוש"],
+          ].map(([v, l]) => (
+            <button
+              key={v}
+              onClick={() => updateFilter("type", v)}
+              className={`text-xs px-3 py-2 rounded-lg border font-semibold ${
+                filters.type === v ? "bg-olive text-cream border-olive" : "bg-white border-sage-dark/60"
+              }`}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+
+        <select className="field-input" value={filters.material} onChange={(e) => updateFilter("material", e.target.value)}>
+          <option value="all">כל סוגי החומר</option>
+          {MATERIALS.map((m) => (
+            <option key={m} value={m}>{m}</option>
+          ))}
+        </select>
+
+        <div className="grid grid-cols-2 gap-2">
+          <select className="field-input" value={filters.priceType} onChange={(e) => updateFilter("priceType", e.target.value)}>
+            <option value="all">כל סוגי המחיר</option>
+            <option value="perCubic">מחיר לקו״ב</option>
+            <option value="flexible">מחיר גמיש</option>
+            <option value="freePickup">חינם</option>
+            <option value="total">יקבע בהמשך</option>
+          </select>
+          <select className="field-input" value={filters.transport} onChange={(e) => updateFilter("transport", e.target.value)}>
+            <option value="all">כל אפשרויות ההובלה</option>
+            <option value="buyerPickup">אתה תקח / אני אקח</option>
+            <option value="sellerHelps">אני אביא / אתה תביא</option>
+            <option value="flexible">תיאום בהמשך</option>
+          </select>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <select className="field-input" value={filters.loading} onChange={(e) => updateFilter("loading", e.target.value)}>
+            <option value="all">העמסה — הכל</option>
+            <option value="yes">כולל העמסה</option>
+            <option value="no">בלי העמסה</option>
+          </select>
+          <select
+            className="field-input"
+            value={filters.radiusKm}
+            onChange={(e) => updateFilter("radiusKm", e.target.value)}
+            disabled={!myLocation}
+          >
+            <option value="all">רדיוס — הכל</option>
+            <option value="10">10 ק״מ</option>
+            <option value="20">20 ק״מ</option>
+            <option value="50">50 ק״מ</option>
+          </select>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => navigator.geolocation?.getCurrentPosition((p) => setMyLocation({ lat: p.coords.latitude, lng: p.coords.longitude }))}
+          className="text-xs text-olive font-semibold"
+        >
+          📍 {myLocation ? "המיקום נקלט — התוצאות ממוינות לפי מרחק" : "השתמש במיקום שלי לסינון לפי רדיוס"}
+        </button>
+      </div>
+
+      {loading && <p className="text-forest/50">טוען…</p>}
+      {!loading && filtered.length === 0 && <p className="text-forest/50">אין מודעות שמתאימות לסינון הנוכחי.</p>}
 
       <div className="space-y-4">
-        {matches.map((m) => {
-          const mineIsSupply = m.supply.user_id === user.id;
-          const other = mineIsSupply ? m.demand : m.supply;
-          return (
-            <div key={`${m.supply.id}-${m.demand.id}`}>
-              <div className="flex items-center justify-between mb-2">
-                <span className={`text-xs font-bold px-2.5 py-1 rounded-lg ${SCORE_COLOR[m.score]}`}>
-                  {SCORE_LABEL[m.score]}
-                </span>
-                <span className="text-xs text-stone-500">
-                  {materialLabel(other.material_type)} · ההתאמה שלך ל
-                  {mineIsSupply ? "היצע" : "ביקוש"} שפרסמת
-                </span>
-              </div>
-              <ListingCard
-                listing={other}
-                distanceKm={m.distanceKm}
-                onStatusChange={handleStatusChange}
-              />
-            </div>
-          );
-        })}
+        {filtered.map((l) => (
+          <ListingCard key={l.id} listing={l} distanceKm={l._dist != null ? Math.round(l._dist) : null} onExpressInterest={() => setInterestSent(true)} />
+        ))}
       </div>
+
+      <SuccessModal open={interestSent} message="ההתעניינות שלך נשלחה! בעל המודעה יקבל עדכון." onClose={() => setInterestSent(false)} />
     </main>
   );
 }

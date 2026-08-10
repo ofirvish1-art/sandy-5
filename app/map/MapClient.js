@@ -46,7 +46,6 @@ export default function MapClient() {
   return (
     <main className="max-w-xl mx-auto px-4 pt-8 pb-6">
       <h1 className="font-display font-black text-2xl">מפת עסקאות</h1>
-      <div className="hazard-rule my-4" />
 
       <div className="flex gap-2 flex-wrap mb-3">
         {[
@@ -58,7 +57,7 @@ export default function MapClient() {
             key={v}
             onClick={() => setTypeFilter(v)}
             className={`text-xs px-3 py-1.5 rounded-lg border font-semibold ${
-              typeFilter === v ? "bg-stone-900 text-white border-stone-900" : "bg-white border-stone-200"
+              typeFilter === v ? "bg-olive text-white border-olive" : "bg-white border-sage-dark/40"
             }`}
           >
             {l}
@@ -70,7 +69,7 @@ export default function MapClient() {
               setMyLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
             )
           }
-          className="text-xs px-3 py-1.5 rounded-lg border font-semibold bg-brand-500 text-white border-brand-500"
+          className="text-xs px-3 py-1.5 rounded-lg border font-semibold bg-olive text-cream border-olive"
         >
           📍 מצא קרובים אליי
         </button>
@@ -92,8 +91,8 @@ export default function MapClient() {
               center={[l.latitude, l.longitude]}
               radius={9}
               pathOptions={{
-                color: l.type === "supply" ? "#2F9C5A" : "#D9480F",
-                fillColor: l.type === "supply" ? "#2F9C5A" : "#D9480F",
+                color: l.type === "supply" ? "#4A6B4E" : "#3A523D",
+                fillColor: l.type === "supply" ? "#4A6B4E" : "#3A523D",
                 fillOpacity: 0.85,
               }}
             >
@@ -118,8 +117,8 @@ export default function MapClient() {
           ))}
         </MapContainer>
       </div>
-      <p className="text-xs text-stone-400 mt-2">
-        ● ירוק = היצע &nbsp; ● כתום = ביקוש
+      <p className="text-xs text-forest/40 mt-2">
+        ● ירוק כהה = ביקוש &nbsp; ● ירוק בהיר = היצע
       </p>
     </main>
   );

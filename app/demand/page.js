@@ -4,318 +4,225 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { getStoredUser } from "@/lib/session";
+import { MATERIALS } from "@/lib/materials";
+import Wizard from "@/components/Wizard";
+import SuccessModal from "@/components/SuccessModal";
 
-const MATERIALS = [
-  ["sand", "חול"],
-  ["hamra", "חמרה"],
-  ["matza", "מצע"],
-  ["other", "אחר"],
-];
-const URGENCIES = [
-  ["now", "עכשיו"],
-  ["today", "היום"],
-  ["tomorrow", "מחר"],
-  ["week", "השבוע"],
-  ["future", "תאריך אחר"],
-];
-const RADII = [5, 10, 20, 50];
-const TRANSPORTS = [
-  ["buyerPickup", "אני בא לקחת"],
-  ["needsTransport", "צריך הובלה"],
-  ["flexible", "פתוח לתיאום"],
-];
+const TOTAL_STEPS = 4;
+const RADII = ["10", "20", "50", "50+"];
 
 export default function DemandPage() {
   const router = useRouter();
   const user = typeof window !== "undefined" ? getStoredUser() : null;
 
-  const [form, setForm] = useState({
-    material_type: "sand",
-    quantity_cubic: "",
-    location_text: "",
-    urgency: "now",
-    max_radius_km: 20,
-    price_type: "flexible",
-    price_value: "",
-    transport: "flexible",
-    contact_phone: user?.phone || "",
-    notes: "",
-    quality_requirements: "",
-    deadline: "",
-    latitude: null,
-    longitude: null,
-  });
+  const [step, setStep] = useState(0);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const [form, setForm] = useState({
+    material_type: MATERIALS[0],
+    material_other: "",
+    quantity_cubic: "",
+    price_type: "perCubic",
+    location_text: "",
+    latitude: null,
+    longitude: null,
+    max_radius_km: "20",
+    urgency: "today",
+    specific_date: "",
+    transport: "buyerPickup",
+    has_loading: "buyerLoads",
+    notes: "",
+  });
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
   }
+  function useMyLocation() {
+    navigator.geolocation?.getCurrentPosition((pos) =>
+      setForm((f) => ({ ...f, latitude: pos.coords.latitude, longitude: pos.coords.longitude }))
+    );
+  }
 
-  async function handleSubmit(e, asDraft = false) {
-    e.preventDefault();
+  const stepValid = [
+    !!form.quantity_cubic && (form.material_type !== "אחר" || form.material_other.trim()),
+    !!form.location_text.trim(),
+    form.urgency !== "specific" || !!form.specific_date,
+    true,
+  ][step];
+
+  function next() {
+    if (step < TOTAL_STEPS - 1) setStep(step + 1);
+    else handleSubmit();
+  }
+  function back() {
+    setStep((s) => Math.max(0, s - 1));
+  }
+
+  async function handleSubmit() {
     setError("");
-
     if (!user) {
       setError("צריך להירשם קודם");
       return;
     }
-    if (!form.quantity_cubic || !form.location_text.trim()) {
-      setError("כמות ומיקום הם שדות חובה");
-      return;
-    }
-
     setLoading(true);
+
+    const materialLabel = form.material_type === "אחר" ? form.material_other.trim() : form.material_type;
+
     const { error: dbError } = await supabase.from("listings").insert({
       type: "demand",
       user_id: user.id,
-      material_type: form.material_type,
+      material_type: materialLabel,
       quantity_cubic: Number(form.quantity_cubic),
-      location_text: form.location_text.trim(),
-      urgency: form.urgency,
-      max_radius_km: form.max_radius_km === "open" ? null : Number(form.max_radius_km),
       price_type: form.price_type,
-      price_value: form.price_value ? Number(form.price_value) : null,
-      transport: form.transport,
-      contact_phone: form.contact_phone.trim(),
-      notes: form.notes.trim() || null,
-      quality_requirements: form.quality_requirements.trim() || null,
-      deadline: form.deadline || null,
+      location_text: form.location_text.trim(),
       latitude: form.latitude,
       longitude: form.longitude,
-      status: asDraft ? "draft" : "open",
+      max_radius_km: form.max_radius_km === "50+" ? null : Number(form.max_radius_km),
+      urgency: form.urgency === "specific" ? "future" : form.urgency,
+      deadline: form.urgency === "specific" ? form.specific_date : null,
+      transport: form.transport,
+      has_loading: form.has_loading === "buyerLoads",
+      notes: form.notes.trim() || null,
+      contact_phone: user.phone,
+      status: "open",
     });
-    setLoading(false);
 
+    setLoading(false);
     if (dbError) {
       setError("שגיאה בפרסום. נסה שוב.");
       console.error(dbError);
       return;
     }
-
-    router.push("/matches");
+    setShowSuccess(true);
   }
 
   return (
     <main className="max-w-xl mx-auto px-4 pt-8 pb-6">
-      <span className="inline-block text-xs font-bold px-2.5 py-1 rounded-lg bg-demand-50 text-demand-600">
-        ביקוש
-      </span>
-      <h1 className="font-display font-black text-2xl mt-2">אני צריך</h1>
-      <div className="hazard-rule my-4" style={{ "--stripe-color": "#D9480F" }} />
-      <p className="text-stone-600 mb-5">
-        פרסם איזה חומר אתה צריך, איפה ומתי — וקבל התאמות רלוונטיות.
-      </p>
+      <span className="chip mb-2 inline-block bg-olive/10 text-olive">ביקוש</span>
+      <h1 className="font-display font-black text-2xl mb-5">פרסום מודעה</h1>
 
-      {!user && (
-        <p className="text-demand-600 text-sm font-semibold mb-4">
-          יש להירשם קודם בעמוד ההרשמה כדי לפרסם.
-        </p>
-      )}
+      <div className="card p-5">
+        <Wizard
+          step={step}
+          totalSteps={TOTAL_STEPS}
+          onBack={back}
+          onNext={next}
+          nextDisabled={!stepValid || loading}
+          nextLabel={step === TOTAL_STEPS - 1 ? (loading ? "מפרסם…" : "פרסם") : "הבא"}
+          title={["חומר ומחיר", "מיקום ורדיוס חיפוש", "מועד", "הובלה והערות"][step]}
+        >
+          {step === 0 && (
+            <>
+              <div>
+                <label className="field-label">סוג חומר</label>
+                <select className="field-input" value={form.material_type} onChange={(e) => update("material_type", e.target.value)}>
+                  {MATERIALS.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+              {form.material_type === "אחר" && (
+                <div>
+                  <label className="field-label">פרט את סוג החומר</label>
+                  <input className="field-input" value={form.material_other} onChange={(e) => update("material_other", e.target.value)} />
+                </div>
+              )}
+              <div>
+                <label className="field-label">כמות בקו״ב</label>
+                <input className="field-input" type="number" value={form.quantity_cubic} onChange={(e) => update("quantity_cubic", e.target.value)} placeholder="500" />
+              </div>
+              <div>
+                <label className="field-label">מחיר</label>
+                <select className="field-input" value={form.price_type} onChange={(e) => update("price_type", e.target.value)}>
+                  <option value="perCubic">מחיר לקו״ב</option>
+                  <option value="flexible">מחיר גמיש</option>
+                  <option value="freePickup">חינם</option>
+                  <option value="total">יקבע בהמשך</option>
+                </select>
+              </div>
+            </>
+          )}
 
-      <form className="space-y-4">
-        <div>
-          <label className="field-label">סוג חומר נדרש</label>
-          <div className="grid grid-cols-4 gap-2">
-            {MATERIALS.map(([value, label]) => (
-              <button
-                type="button"
-                key={value}
-                onClick={() => update("material_type", value)}
-                className={`rounded-xl py-2.5 text-sm font-bold border ${
-                  form.material_type === value
-                    ? "bg-demand-500 text-white border-demand-500"
-                    : "bg-white border-stone-200"
-                }`}
-              >
-                {label}
+          {step === 1 && (
+            <>
+              <div>
+                <label className="field-label">כתובת / עיר</label>
+                <input className="field-input" value={form.location_text} onChange={(e) => update("location_text", e.target.value)} placeholder="עיר / כתובת" />
+              </div>
+              <button type="button" onClick={useMyLocation} className="text-sm text-olive font-semibold">
+                📍 {form.latitude ? "המיקום נקלט" : "השתמש במיקום הנוכחי שלי"}
               </button>
-            ))}
-          </div>
-        </div>
+              <div>
+                <label className="field-label">רדיוס חיפוש</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {RADII.map((r) => (
+                    <button
+                      type="button"
+                      key={r}
+                      onClick={() => update("max_radius_km", r)}
+                      className={`rounded-xl py-2 text-sm font-bold border ${
+                        form.max_radius_km === r ? "bg-olive text-cream border-olive" : "bg-white border-sage-dark/60"
+                      }`}
+                    >
+                      {r} ק״מ
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
 
-        <div>
-          <label className="field-label">כמות בקוב</label>
-          <input
-            className="field-input"
-            type="number"
-            inputMode="numeric"
-            value={form.quantity_cubic}
-            onChange={(e) => update("quantity_cubic", e.target.value)}
-            placeholder="500"
-          />
-        </div>
+          {step === 2 && (
+            <div>
+              <label className="field-label">מועד</label>
+              <select className="field-input" value={form.urgency} onChange={(e) => update("urgency", e.target.value)}>
+                <option value="now">היום</option>
+                <option value="tomorrow">מחר</option>
+                <option value="week">השבוע</option>
+                <option value="specific">תאריך ספציפי</option>
+              </select>
+              {form.urgency === "specific" && (
+                <input className="field-input mt-3" type="date" value={form.specific_date} onChange={(e) => update("specific_date", e.target.value)} />
+              )}
+            </div>
+          )}
 
-        <div>
-          <label className="field-label">מיקום יעד</label>
-          <input
-            className="field-input"
-            value={form.location_text}
-            onChange={(e) => update("location_text", e.target.value)}
-            placeholder="עיר / כתובת"
-          />
-          <button
-            type="button"
-            onClick={() =>
-              navigator.geolocation?.getCurrentPosition((pos) =>
-                setForm((f) => ({
-                  ...f,
-                  latitude: pos.coords.latitude,
-                  longitude: pos.coords.longitude,
-                }))
-              )
-            }
-            className="text-xs text-brand-600 font-semibold mt-1.5"
-          >
-            📍 {form.latitude ? "המיקום נקלט" : "השתמש במיקום שלי (למפה)"}
-          </button>
-        </div>
+          {step === 3 && (
+            <>
+              <div>
+                <label className="field-label">הובלה</label>
+                <select className="field-input" value={form.transport} onChange={(e) => update("transport", e.target.value)}>
+                  <option value="buyerPickup">אני אקח</option>
+                  <option value="sellerHelps">אתה תביא</option>
+                  <option value="flexible">תיאום בהמשך</option>
+                </select>
+              </div>
+              <div>
+                <label className="field-label">העמסה</label>
+                <select className="field-input" value={form.has_loading} onChange={(e) => update("has_loading", e.target.value)}>
+                  <option value="buyerLoads">אתה מעמיס</option>
+                  <option value="sellerLoads">אני מעמיס</option>
+                  <option value="flexible">תיאום בהמשך</option>
+                </select>
+              </div>
+              <div>
+                <label className="field-label">הערות</label>
+                <textarea className="field-input" rows={3} value={form.notes} onChange={(e) => update("notes", e.target.value)} />
+              </div>
+            </>
+          )}
+        </Wizard>
 
-        <div>
-          <label className="field-label">צריך מתי</label>
-          <select
-            className="field-input"
-            value={form.urgency}
-            onChange={(e) => update("urgency", e.target.value)}
-          >
-            {URGENCIES.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
+        {error && <p className="text-red-600 text-sm font-semibold mt-3">{error}</p>}
+      </div>
 
-        <div>
-          <label className="field-label">רדיוס מקסימלי</label>
-          <div className="grid grid-cols-5 gap-2">
-            {RADII.map((r) => (
-              <button
-                type="button"
-                key={r}
-                onClick={() => update("max_radius_km", r)}
-                className={`rounded-xl py-2 text-sm font-bold border ${
-                  form.max_radius_km === r
-                    ? "bg-demand-500 text-white border-demand-500"
-                    : "bg-white border-stone-200"
-                }`}
-              >
-                {r} ק״מ
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => update("max_radius_km", "open")}
-              className={`rounded-xl py-2 text-xs font-bold border ${
-                form.max_radius_km === "open"
-                  ? "bg-demand-500 text-white border-demand-500"
-                  : "bg-white border-stone-200"
-              }`}
-            >
-              פתוח
-            </button>
-          </div>
-        </div>
-
-        <div>
-          <label className="field-label">מחיר יעד</label>
-          <div className="grid grid-cols-2 gap-2">
-            <select
-              className="field-input"
-              value={form.price_type}
-              onChange={(e) => update("price_type", e.target.value)}
-            >
-              <option value="perCubic">מחיר לקוב</option>
-              <option value="total">מחיר כללי</option>
-              <option value="flexible">גמיש</option>
-              <option value="freePickup">לא יודע</option>
-            </select>
-            <input
-              className="field-input"
-              type="number"
-              disabled={["flexible", "freePickup"].includes(form.price_type)}
-              value={form.price_value}
-              onChange={(e) => update("price_value", e.target.value)}
-              placeholder="₪"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="field-label">הובלה</label>
-          <select
-            className="field-input"
-            value={form.transport}
-            onChange={(e) => update("transport", e.target.value)}
-          >
-            {TRANSPORTS.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="field-label">טלפון ליצירת קשר</label>
-          <input
-            className="field-input"
-            dir="ltr"
-            value={form.contact_phone}
-            onChange={(e) => update("contact_phone", e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label className="field-label">דרישות איכות (רשות)</label>
-          <input
-            className="field-input"
-            value={form.quality_requirements}
-            onChange={(e) => update("quality_requirements", e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label className="field-label">תאריך אחרון לקבלת החומר (רשות)</label>
-          <input
-            className="field-input"
-            type="date"
-            value={form.deadline}
-            onChange={(e) => update("deadline", e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label className="field-label">הערות (רשות)</label>
-          <textarea
-            className="field-input"
-            rows={3}
-            value={form.notes}
-            onChange={(e) => update("notes", e.target.value)}
-          />
-        </div>
-
-        {error && <p className="text-demand-600 text-sm font-semibold">{error}</p>}
-
-        <div className="flex gap-3 pt-2">
-          <button
-            type="button"
-            onClick={(e) => handleSubmit(e, true)}
-            disabled={loading}
-            className="btn-secondary flex-1"
-          >
-            שמור כטיוטה
-          </button>
-          <button
-            type="button"
-            onClick={(e) => handleSubmit(e, false)}
-            disabled={loading}
-            className="btn-demand flex-1"
-          >
-            {loading ? "מפרסם…" : "פרסם ביקוש"}
-          </button>
-        </div>
-      </form>
+      <SuccessModal
+        open={showSuccess}
+        message="העסקה פורסמה בהצלחה. ניתן לראותה במסך ההתאמות, לוח השנה או במפה"
+        onClose={() => router.push("/matches")}
+      />
     </main>
   );
 }

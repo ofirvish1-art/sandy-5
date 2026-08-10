@@ -63,7 +63,6 @@ export default function AdminPage() {
   return (
     <main className="max-w-3xl mx-auto px-4 pt-8 pb-6">
       <h1 className="font-display font-black text-2xl">Admin Dashboard</h1>
-      <div className="hazard-rule my-4" />
 
       {stats && (
         <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 mb-6">
@@ -76,7 +75,7 @@ export default function AdminPage() {
           ].map(([label, value]) => (
             <div key={label} className="card p-3 text-center">
               <div className="text-2xl font-black">{value}</div>
-              <div className="text-[11px] text-stone-500">{label}</div>
+              <div className="text-[11px] text-forest/50">{label}</div>
             </div>
           ))}
         </div>
@@ -91,7 +90,7 @@ export default function AdminPage() {
             key={v}
             onClick={() => setTab(v)}
             className={`text-sm px-3 py-1.5 rounded-lg border font-semibold ${
-              tab === v ? "bg-stone-900 text-white border-stone-900" : "bg-white border-stone-200"
+              tab === v ? "bg-olive text-white border-olive" : "bg-white border-sage-dark/40"
             }`}
           >
             {l}
@@ -103,16 +102,16 @@ export default function AdminPage() {
         <div className="space-y-2">
           {listings.map((l) => (
             <div key={l.id} className="card p-3 flex flex-wrap items-center gap-2 text-sm">
-              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${l.type === "supply" ? "bg-supply-50 text-supply-600" : "bg-demand-50 text-demand-600"}`}>
+              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${l.type === "supply" ? "bg-sage/30 text-olive" : "bg-olive/10 text-olive"}`}>
                 {l.type === "supply" ? "היצע" : "ביקוש"}
               </span>
               <span className="font-semibold">{materialLabel(l.material_type)}</span>
-              <span className="text-stone-500">{l.quantity_cubic} קוב</span>
-              <span className="text-stone-500">{l.location_text}</span>
-              <span className="text-xs bg-stone-100 px-2 py-1 rounded-lg font-semibold">{l.status}</span>
+              <span className="text-forest/50">{l.quantity_cubic} קוב</span>
+              <span className="text-forest/50">{l.location_text}</span>
+              <span className="text-xs bg-sage/20 px-2 py-1 rounded-lg font-semibold">{l.status}</span>
               <div className="ms-auto flex gap-1">
                 <select
-                  className="text-xs border border-stone-200 rounded-lg px-1.5 py-1"
+                  className="text-xs border border-sage-dark/40 rounded-lg px-1.5 py-1"
                   value={l.status}
                   onChange={(e) => updateListingStatus(l.id, e.target.value)}
                 >
@@ -122,7 +121,7 @@ export default function AdminPage() {
                 </select>
                 <button
                   onClick={() => deleteListing(l.id)}
-                  className="text-xs text-demand-600 font-bold px-2"
+                  className="text-xs text-olive font-bold px-2"
                 >
                   מחק
                 </button>
@@ -137,8 +136,8 @@ export default function AdminPage() {
           {users.map((u) => (
             <div key={u.id} className="card p-3 flex flex-wrap items-center gap-3 text-sm">
               <span className="font-semibold">{u.name}</span>
-              <span className="text-stone-500" dir="ltr">{u.phone}</span>
-              <span className="text-stone-500">{u.email}</span>
+              <span className="text-forest/50" dir="ltr">{u.phone}</span>
+              <span className="text-forest/50">{u.email}</span>
             </div>
           ))}
         </div>
