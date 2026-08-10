@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { supabase } from "@/lib/supabaseClient";
@@ -8,6 +8,7 @@ import { materialLabel } from "@/components/MaterialBadge";
 import { URGENCY_LABELS, formatPrice, waLink } from "@/lib/format";
 import { haversineKm } from "@/lib/matching";
 import { useFilters } from "@/contexts/FilterContext";
+import { useRefetchOnFocus } from "@/lib/useRefetchOnFocus";
 import FilterBar from "@/components/FilterBar";
 
 const CENTER_ISRAEL = [32.08, 34.9];
@@ -34,18 +35,21 @@ export default function MapClient() {
   const [myLocation, setMyLocation] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
 
-  useEffect(() => {
-    async function load() {
-      const { data } = await supabase
-        .from("listings")
-        .select("*")
-        .eq("status", "open")
-        .not("latitude", "is", null)
-        .not("longitude", "is", null);
-      setListings(data || []);
-    }
-    load();
+  const load = useCallback(async () => {
+    const { data } = await supabase
+      .from("listings")
+      .select("*")
+      .eq("status", "open")
+      .not("latitude", "is", null)
+      .not("longitude", "is", null);
+    setListings(data || []);
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  useRefetchOnFocus(load);
 
   function locateMe() {
     navigator.geolocation?.getCurrentPosition((pos) => setMyLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }));

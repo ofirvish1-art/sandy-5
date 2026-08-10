@@ -11,7 +11,9 @@ module.exports = {
         olive: {
           DEFAULT: "#3A523D", // Deep Olive Green — footer, headings, emphasis
           light: "#4A6B4E",
+          night: "#1F2E20", // near-black header/nav green from the reference design
         },
+        demand: "#C0392B", // demand-side red used on the calendar + toggles
         sage: {
           DEFAULT: "#B2D8A2", // Light Sage / Pistachio — CTA buttons, active chips
           dark: "#A8C297", // card backgrounds

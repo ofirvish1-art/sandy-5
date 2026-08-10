@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { getStoredUser } from "@/lib/session";
 import { MATERIALS } from "@/lib/materials";
@@ -9,17 +9,22 @@ import Wizard from "@/components/Wizard";
 import SuccessModal from "@/components/SuccessModal";
 import CityAutocomplete from "@/components/CityAutocomplete";
 
+export const dynamic = "force-dynamic";
+
 const TOTAL_STEPS = 4;
 const RADII = ["10", "20", "50", "50+"];
 
 export default function DemandPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("edit");
   const user = typeof window !== "undefined" ? getStoredUser() : null;
 
   const [step, setStep] = useState(0);
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingExisting, setLoadingExisting] = useState(!!editId);
 
   const [form, setForm] = useState({
     material_type: MATERIALS[0],
@@ -38,6 +43,38 @@ export default function DemandPage() {
     has_loading: "buyerLoads",
     notes: "",
   });
+
+  // Item 1: post editing — load the existing listing and pre-populate the wizard.
+  useEffect(() => {
+    if (!editId || !user) return;
+    async function loadExisting() {
+      const { data } = await supabase.from("listings").select("*").eq("id", editId).eq("user_id", user.id).single();
+      if (!data) {
+        setLoadingExisting(false);
+        return;
+      }
+      const isKnownMaterial = MATERIALS.includes(data.material_type);
+      setForm({
+        material_type: isKnownMaterial ? data.material_type : "אחר",
+        material_other: isKnownMaterial ? "" : data.material_type,
+        quantity_cubic: String(data.quantity_cubic ?? ""),
+        price_type: data.price_type || "",
+        price_value: data.price_value != null ? String(data.price_value) : "",
+        location_text: data.location_text || "",
+        region: data.region || null,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        max_radius_km: data.max_radius_km != null ? String(data.max_radius_km) : "50+",
+        urgency: data.deadline ? "specific" : data.urgency || "today",
+        specific_date: data.deadline || "",
+        transport: data.transport || "buyerPickup",
+        has_loading: data.has_loading ? "buyerLoads" : "sellerLoads",
+        notes: data.notes || "",
+      });
+      setLoadingExisting(false);
+    }
+    loadExisting();
+  }, [editId, user?.id]);
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -88,7 +125,7 @@ export default function DemandPage() {
 
     const materialLabel = form.material_type === "אחר" ? form.material_other.trim() : form.material_type;
 
-    const { error: dbError } = await supabase.from("listings").insert({
+    const payload = {
       type: "demand",
       user_id: user.id,
       material_type: materialLabel,
@@ -106,22 +143,33 @@ export default function DemandPage() {
       has_loading: form.has_loading === "buyerLoads",
       notes: form.notes.trim() || null,
       contact_phone: user.phone,
-      status: "open",
-    });
+    };
+
+    const { error: dbError } = editId
+      ? await supabase.from("listings").update(payload).eq("id", editId).eq("user_id", user.id)
+      : await supabase.from("listings").insert({ ...payload, status: "open" });
 
     setLoading(false);
     if (dbError) {
-      setError("שגיאה בפרסום. נסה שוב.");
+      setError("שגיאה בשמירה. נסה שוב.");
       console.error(dbError);
       return;
     }
     setShowSuccess(true);
   }
 
+  if (loadingExisting) {
+    return (
+      <main className="max-w-xl mx-auto px-4 pt-8 pb-6">
+        <p className="text-forest/50">טוען מודעה…</p>
+      </main>
+    );
+  }
+
   return (
     <main className="max-w-xl mx-auto px-4 pt-8 pb-6">
       <span className="chip mb-2 inline-block bg-olive/10 text-olive">ביקוש</span>
-      <h1 className="font-display font-black text-2xl mb-5">פרסום מודעה</h1>
+      <h1 className="font-display font-black text-2xl mb-5">{editId ? "עריכת מודעה" : "פרסום מודעה"}</h1>
 
       <div className="card p-5">
         <Wizard

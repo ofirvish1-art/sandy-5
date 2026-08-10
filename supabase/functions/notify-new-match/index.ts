@@ -46,18 +46,16 @@ function timingScore(supply: any, demand: any) {
   if (diff >= 21) return 0;
   return 1 - (diff - 7) / 14;
 }
-function logisticsScore(supply: any, demand: any) {
-  const transportOk = supply.transport === "flexible" || demand.transport === "flexible" || supply.transport !== demand.transport;
-  const loadingOk = supply.has_loading !== demand.has_loading || supply.has_loading == null || demand.has_loading == null;
-  return (transportOk ? 0.5 : 0.2) + (loadingOk ? 0.5 : 0.2);
+function logisticsCompatible(supply: any, demand: any) {
+  return supply.transport === "flexible" || demand.transport === "flexible" || supply.transport === demand.transport;
 }
 function scoreMatch(supply: any, demand: any) {
   if (!supply.material_type || supply.material_type !== demand.material_type) return null;
+  if (!logisticsCompatible(supply, demand)) return null;
   const q = quantityScore(supply, demand);
   const l = locationScore(supply, demand);
   const t = timingScore(supply, demand);
-  const g = logisticsScore(supply, demand);
-  return Math.round(q * 35 + l * 30 + t * 20 + g * 15);
+  return Math.round(q * 40 + l * 35 + t * 25);
 }
 
 Deno.serve(async (req) => {

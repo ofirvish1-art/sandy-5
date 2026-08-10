@@ -13,8 +13,8 @@ export default function FilterBar({ onLocateMe, locating }) {
       <div className="grid grid-cols-3 gap-2">
         {[
           ["all", "הכל"],
-          ["supply", "היצע"],
-          ["demand", "ביקוש"],
+          ["supply", "מציעים"],
+          ["demand", "מבקשים"],
         ].map(([v, l]) => (
           <button
             key={v}

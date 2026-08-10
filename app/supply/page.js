@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { getStoredUser } from "@/lib/session";
 import { MATERIALS } from "@/lib/materials";
@@ -9,16 +9,22 @@ import Wizard from "@/components/Wizard";
 import SuccessModal from "@/components/SuccessModal";
 import CityAutocomplete from "@/components/CityAutocomplete";
 
+export const dynamic = "force-dynamic";
+
 const TOTAL_STEPS = 4;
 
 export default function SupplyPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("edit");
   const user = typeof window !== "undefined" ? getStoredUser() : null;
 
   const [step, setStep] = useState(0);
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingExisting, setLoadingExisting] = useState(!!editId);
+  const [existingImageUrl, setExistingImageUrl] = useState(null);
 
   const [form, setForm] = useState({
     material_type: MATERIALS[0],
@@ -37,6 +43,39 @@ export default function SupplyPage() {
     image: null,
     notes: "",
   });
+
+  // Item 1: post editing — load the existing listing and pre-populate the wizard.
+  useEffect(() => {
+    if (!editId || !user) return;
+    async function loadExisting() {
+      const { data } = await supabase.from("listings").select("*").eq("id", editId).eq("user_id", user.id).single();
+      if (!data) {
+        setLoadingExisting(false);
+        return;
+      }
+      const isKnownMaterial = MATERIALS.includes(data.material_type);
+      setForm({
+        material_type: isKnownMaterial ? data.material_type : "אחר",
+        material_other: isKnownMaterial ? "" : data.material_type,
+        quantity_cubic: String(data.quantity_cubic ?? ""),
+        price_type: data.price_type || "",
+        price_value: data.price_value != null ? String(data.price_value) : "",
+        location_text: data.location_text || "",
+        region: data.region || null,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        urgency: data.available_until ? "specific" : data.urgency || "today",
+        specific_date: data.available_until || "",
+        transport: data.transport || "buyerPickup",
+        has_loading: data.has_loading ? "sellerLoads" : "buyerLoads",
+        image: null,
+        notes: data.notes || "",
+      });
+      setExistingImageUrl(data.images?.[0] || null);
+      setLoadingExisting(false);
+    }
+    loadExisting();
+  }, [editId, user?.id]);
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -72,7 +111,7 @@ export default function SupplyPage() {
       (!priceNeedsValue || !!form.price_value), // item 12: required when perCubic
     hasLocation,
     form.urgency !== "specific" || !!form.specific_date,
-    !!form.image, // mandatory photo/video per spec
+    !!form.image || (!!editId && !!existingImageUrl), // mandatory photo/video, unless editing and one's already saved
   ][step];
 
   function next() {
@@ -91,7 +130,7 @@ export default function SupplyPage() {
     }
     setLoading(true);
 
-    let imageUrl = null;
+    let imageUrl = existingImageUrl;
     if (form.image) {
       const path = `${user.id}/${Date.now()}-${form.image.name}`;
       const { error: uploadError } = await supabase.storage.from("listing-images").upload(path, form.image);
@@ -103,7 +142,7 @@ export default function SupplyPage() {
 
     const materialLabel = form.material_type === "אחר" ? form.material_other.trim() : form.material_type;
 
-    const { error: dbError } = await supabase.from("listings").insert({
+    const payload = {
       type: "supply",
       user_id: user.id,
       material_type: materialLabel,
@@ -121,22 +160,33 @@ export default function SupplyPage() {
       images: imageUrl ? [imageUrl] : [],
       notes: form.notes.trim() || null,
       contact_phone: user.phone,
-      status: "open",
-    });
+    };
+
+    const { error: dbError } = editId
+      ? await supabase.from("listings").update(payload).eq("id", editId).eq("user_id", user.id)
+      : await supabase.from("listings").insert({ ...payload, status: "open" });
 
     setLoading(false);
     if (dbError) {
-      setError("שגיאה בפרסום. נסה שוב.");
+      setError("שגיאה בשמירה. נסה שוב.");
       console.error(dbError);
       return;
     }
     setShowSuccess(true);
   }
 
+  if (loadingExisting) {
+    return (
+      <main className="max-w-xl mx-auto px-4 pt-8 pb-6">
+        <p className="text-forest/50">טוען מודעה…</p>
+      </main>
+    );
+  }
+
   return (
     <main className="max-w-xl mx-auto px-4 pt-8 pb-6">
       <span className="chip chip-active mb-2 inline-block">היצע</span>
-      <h1 className="font-display font-black text-2xl mb-5">פרסום מודעה</h1>
+      <h1 className="font-display font-black text-2xl mb-5">{editId ? "עריכת מודעה" : "פרסום מודעה"}</h1>
 
       <div className="card p-5">
         <Wizard
@@ -236,6 +286,9 @@ export default function SupplyPage() {
               </div>
               <div>
                 <label className="field-label">תמונה / סרטון של החומר (חובה)</label>
+                {existingImageUrl && !form.image && (
+                  <p className="text-xs text-forest/50 mb-1.5">יש כבר תמונה שמורה — בחר קובץ רק אם רוצים להחליף אותה.</p>
+                )}
                 {/* Item 1: capture="environment" opens the live camera on mobile, while still allowing gallery pick */}
                 <input
                   className="field-input"

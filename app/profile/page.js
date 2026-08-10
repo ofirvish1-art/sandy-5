@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { getStoredUser, storeUser, clearStoredUser } from "@/lib/session";
 import { LEGAL_CONTENT } from "@/lib/legalContent";
+import ListingCard from "@/components/ListingCard";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -112,15 +113,15 @@ export default function ProfilePage() {
       </div>
 
       <h2 className="font-display font-bold text-lg mt-6 mb-2">הפרסומים שלי</h2>
-      <div className="space-y-2">
+      <div className="space-y-4">
         {myListings.length === 0 && <p className="text-forest/50 text-sm">עדיין לא פרסמת כלום.</p>}
         {myListings.map((l) => (
-          <div key={l.id} className="card px-4 py-3 flex items-center justify-between text-sm">
-            <span className="font-semibold">
-              {l.type === "supply" ? "היצע" : "ביקוש"} · {l.material_type} · {l.quantity_cubic} קוב
-            </span>
-            <span className="text-xs px-2 py-1 rounded-lg bg-sage/20 font-semibold">{l.status}</span>
-          </div>
+          <ListingCard
+            key={l.id}
+            listing={l}
+            showOwnerControls
+            onStatusChange={(id, status) => setMyListings((rows) => rows.map((r) => (r.id === id ? { ...r, status } : r)))}
+          />
         ))}
       </div>
 
