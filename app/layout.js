@@ -2,7 +2,9 @@ import { Rubik, Assistant } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import AuthGate from "@/components/AuthGate";
+import WizardModal from "@/components/WizardModal";
 import { FilterProvider } from "@/contexts/FilterContext";
+import { WizardProvider } from "@/contexts/WizardContext";
 
 const rubik = Rubik({
   subsets: ["hebrew", "latin"],
@@ -19,7 +21,7 @@ const assistant = Assistant({
 });
 
 export const metadata = {
-  title: "חולית — מרקטפלייס עודפי עפר וחומרי מילוי",
+  title: "סאנדיט — מרקטפלייס עודפי עפר וחומרי מילוי",
   description: "הפלטפורמה המובילה בישראל לקבלני עפר, עודפי חול וחומרי מילוי — לפי מיקום, כמות וזמן.",
   manifest: "/manifest.json",
 };
@@ -36,8 +38,11 @@ export default function RootLayout({ children }) {
       <body className="font-body bg-cream text-forest min-h-screen">
         <AuthGate>
           <FilterProvider>
-            <div className="pb-20 md:pb-0 md:pr-20">{children}</div>
-            <BottomNav />
+            <WizardProvider>
+              <div className="pb-20 md:pb-0 md:pr-20">{children}</div>
+              <BottomNav />
+              <WizardModal />
+            </WizardProvider>
           </FilterProvider>
         </AuthGate>
       </body>

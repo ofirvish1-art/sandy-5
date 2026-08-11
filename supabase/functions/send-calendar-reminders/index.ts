@@ -2,7 +2,7 @@
 //
 // Called every 10 minutes by pg_cron (see migration_005). Finds calendar
 // events whose reminder_at has passed but hasn't been sent yet, and
-// WhatsApps the owner: "תזכורת מחולית: ...".
+// WhatsApps the owner: "תזכורת מסאנדיט: ...".
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
@@ -37,7 +37,7 @@ Deno.serve(async () => {
       // "אותו היום" reminders say "היום", "יום לפני" say "מחר", etc.
       const relativePhrase =
         { sameDay: "היום", dayBefore: "מחר", twoDaysBefore: "בעוד יומיים" }[event.reminder_offset] || `ב-${dateLabel}`;
-      const message = `תזכורת מחולית: ${relativePhrase} בשעה ${timeLabel} — ${event.title}`;
+      const message = `תזכורת מסאנדיט: ${relativePhrase} בשעה ${timeLabel} — ${event.title}`;
 
       try {
         await sendWhatsApp(phone, message);

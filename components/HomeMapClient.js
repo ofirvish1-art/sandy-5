@@ -43,7 +43,7 @@ export default function HomeMapClient() {
   }, []);
 
   return (
-    <div className="card overflow-hidden relative h-[38vh] min-h-[280px] max-h-[440px]">
+    <div className="card overflow-hidden relative h-[42vh] min-h-[300px] max-h-[460px]">
       <MapContainer center={myLocation ? [myLocation.lat, myLocation.lng] : CENTER_ISRAEL} zoom={myLocation ? 11 : 8} zoomControl={false} style={{ height: "100%", width: "100%" }}>
         <TileLayer
           attribution='&copy; <a href="https://carto.com/attributions">CARTO</a>'

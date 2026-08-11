@@ -70,8 +70,8 @@ export default function RegisterPage() {
   return (
     <main className="max-w-xl mx-auto px-4 pt-10 pb-6">
       <div className="text-center mb-6">
-        <h1 className="font-display font-black text-2xl text-olive">חולית</h1>
-        <p className="text-forest/60 text-sm mt-1">יש עפר? צריך עפר? נפגשים בחולית.</p>
+        <h1 className="font-display font-black text-2xl text-olive">סאנדיט</h1>
+        <p className="text-forest/60 text-sm mt-1">יש עפר? צריך עפר? נפגשים בסאנדיט.</p>
       </div>
 
       <div className="card p-5">
@@ -121,7 +121,7 @@ export default function RegisterPage() {
             <label className="flex items-start gap-2.5 text-sm">
               <input type="checkbox" checked={consents.whatsapp} onChange={() => toggleConsent("whatsapp")} className="mt-0.5 w-5 h-5 accent-olive shrink-0" />
               <span>
-                אני מסכים לקבל מחולית הודעות WhatsApp תפעוליות בנוגע למודעות, פניות, עסקאות,
+                אני מסכים לקבל מסאנדיט הודעות WhatsApp תפעוליות בנוגע למודעות, פניות, עסקאות,
                 שינויים בסטטוס ואבטחת החשבון.
               </span>
             </label>

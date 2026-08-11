@@ -44,7 +44,7 @@ export default function FeedbackModal({ open, onClose }) {
             <textarea
               className="field-input"
               rows={4}
-              placeholder="נשמח לשמוע מה אפשר לשפר, או מה אהבת בחולית"
+              placeholder="נשמח לשמוע מה אפשר לשפר, או מה אהבת בסאנדיט"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
             />

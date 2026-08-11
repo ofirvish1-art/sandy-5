@@ -48,7 +48,7 @@ export default function FilterBar({ onLocateMe, locating }) {
         <select className="field-input" value={filters.transport} onChange={(e) => updateFilter("transport", e.target.value)}>
           <option value="all">כל האפשרויות</option>
           <option value="buyerPickup">אני אקח</option>
-          <option value="sellerHelps">אתה תקח</option>
+          <option value="sellerHelps">אתה תיקח</option>
           <option value="flexible">תיאום בהמשך</option>
         </select>
       </div>

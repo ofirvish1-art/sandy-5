@@ -125,7 +125,7 @@ export default function MapClient() {
                   <div>מחיר: {formatPrice(l)}</div>
                   <div style={{ marginTop: 8, display: "flex", gap: 10 }}>
                     <a href={`tel:${l.contact_phone}`}>📞 התקשר</a>
-                    <a href={waLink(l.contact_phone, "שלום, ראיתי את הפרסום שלך במפה בחולית.")} target="_blank" rel="noreferrer">
+                    <a href={waLink(l.contact_phone, "שלום, ראיתי את הפרסום שלך במפה בסאנדיט.")} target="_blank" rel="noreferrer">
                       💬 וואטסאפ
                     </a>
                   </div>

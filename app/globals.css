@@ -57,3 +57,37 @@ body {
 .step-dot-active {
   @apply w-2.5 h-2.5 rounded-full bg-olive;
 }
+
+/* Item 10: animated hourglass in the home header — flips over, with a
+   grain of "sand" that drips mid-flip. */
+@keyframes hourglass-flip {
+  0%, 35% { transform: rotate(0deg); }
+  50%, 85% { transform: rotate(180deg); }
+  100% { transform: rotate(360deg); }
+}
+.animate-hourglass {
+  display: inline-block;
+  transform-origin: 50% 50%;
+  animation: hourglass-flip 3.6s ease-in-out infinite;
+}
+@keyframes hourglass-sand {
+  0%, 42% { opacity: 0; transform: translateY(-3px) scale(0.6); }
+  50% { opacity: 1; transform: translateY(0) scale(1); }
+  58%, 100% { opacity: 0; transform: translateY(3px) scale(0.6); }
+}
+.animate-hourglass-sand {
+  animation: hourglass-sand 3.6s ease-in-out infinite;
+}
+
+/* Item 2: the publish wizard opens as an instant bottom sheet. */
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.animate-sheet-up {
+  animation: sheet-up 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pill {
+  @apply inline-flex items-center gap-1 rounded-full border border-sage-dark/40 bg-cream px-2.5 py-1 text-[11px] font-semibold text-forest/70;
+}

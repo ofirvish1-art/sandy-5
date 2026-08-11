@@ -1,10 +1,12 @@
 "use client";
 
-import Link from "next/link";
-import MaterialBadge, { materialLabel } from "./MaterialBadge";
-import { URGENCY_LABELS, TRANSPORT_LABELS, STATUS_LABELS, statusChipClass, formatPrice, waLink } from "@/lib/format";
+import { Truck, Clock, MapPin, Package, MessageCircle, Phone, Send } from "lucide-react";
+import { materialLabel } from "./MaterialBadge";
+import { URGENCY_LABELS, TRANSPORT_LABELS, STATUS_LABELS, statusChipClass, formatPrice, formatRelativeTime, waLink } from "@/lib/format";
 import { supabase } from "@/lib/supabaseClient";
 import { getStoredUser } from "@/lib/session";
+import { LEGAL_CONTENT } from "@/lib/legalContent";
+import { useWizard } from "@/contexts/WizardContext";
 
 async function logInterest(listing, channel) {
   const viewer = getStoredUser();
@@ -26,10 +28,11 @@ export default function ListingCard({ listing, distanceKm, onExpressInterest, sh
   const isSupply = listing.type === "supply";
   const viewer = typeof window !== "undefined" ? getStoredUser() : null;
   const isOwner = showOwnerControls && viewer && listing.user_id === viewer.id;
+  const { openWizard } = useWizard();
 
   const waText = `שלום, ראיתי את הפרסום שלך (${materialLabel(
     listing.material_type
-  )}, ${listing.quantity_cubic} קו״ב) בחולית ורציתי לבדוק זמינות.`;
+  )}, ${listing.quantity_cubic} קו״ב) בסאנדיט ורציתי לבדוק זמינות.`;
 
   async function handleInterest() {
     await logInterest(listing, "interest");
@@ -44,39 +47,33 @@ export default function ListingCard({ listing, distanceKm, onExpressInterest, sh
 
   return (
     <div className="card p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <span className="chip bg-olive/10 text-olive">{isSupply ? "היצע" : "ביקוש"}</span>
-        <MaterialBadge type={listing.material_type} />
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <div className="font-display font-bold text-base">{materialLabel(listing.material_type)}</div>
+          <div className="text-[11px] text-forest/40 mt-0.5">{formatRelativeTime(listing.created_at)}</div>
+        </div>
+        <span className={`chip shrink-0 ${isSupply ? "bg-sage/60 text-olive-night" : "bg-olive-night text-sage"}`}>
+          {isSupply ? "מציע" : "מבקש"}
+        </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
-        <div>
-          <div className="text-forest/40 text-xs">כמות</div>
-          <div className="font-bold">{listing.quantity_cubic} קו״ב</div>
-        </div>
-        <div>
-          <div className="text-forest/40 text-xs">מיקום</div>
-          <div className="font-bold">{listing.location_text}</div>
-        </div>
-        <div>
-          <div className="text-forest/40 text-xs">מועד</div>
-          <div className="font-bold">{URGENCY_LABELS[listing.urgency] || "—"}</div>
-        </div>
-        <div>
-          <div className="text-forest/40 text-xs">מחיר</div>
-          <div className="font-bold">{formatPrice(listing)}</div>
-        </div>
-        {distanceKm != null && (
-          <div>
-            <div className="text-forest/40 text-xs">מרחק</div>
-            <div className="font-bold">{distanceKm} ק״מ</div>
-          </div>
-        )}
-        <div>
-          <div className="text-forest/40 text-xs">הובלה</div>
-          <div className="font-bold">{TRANSPORT_LABELS[listing.transport] || "—"}</div>
-        </div>
+      <div className="flex flex-wrap gap-1.5">
+        <span className="pill">
+          <Truck size={12} strokeWidth={2.25} /> {TRANSPORT_LABELS[listing.transport] || "—"}
+        </span>
+        <span className="pill">
+          <Clock size={12} strokeWidth={2.25} /> {URGENCY_LABELS[listing.urgency] || "—"}
+        </span>
+        <span className="pill">
+          <MapPin size={12} strokeWidth={2.25} /> {listing.location_text}
+          {distanceKm != null ? ` · ${distanceKm} ק״מ` : ""}
+        </span>
+        <span className="pill">
+          <Package size={12} strokeWidth={2.25} /> {listing.quantity_cubic} קו״ב
+        </span>
       </div>
+
+      <div className="font-display font-black text-lg">{formatPrice(listing)}</div>
 
       {listing.images?.[0] && (
         // eslint-disable-next-line @next/next/no-img-element
@@ -89,21 +86,27 @@ export default function ListingCard({ listing, distanceKm, onExpressInterest, sh
 
       {!isOwner && (
         <div className="flex gap-2 pt-1">
-          <a href={`tel:${listing.contact_phone}`} onClick={() => logInterest(listing, "call")} className="btn-secondary flex-1 !px-2 text-sm">
-            📞 התקשר
-          </a>
+          <button onClick={handleInterest} className="btn-olive flex-1 !px-2 text-sm flex items-center justify-center gap-1.5">
+            <Send size={15} strokeWidth={2.25} /> אני מעוניין
+          </button>
           <a
             href={waLink(listing.contact_phone, waText)}
             target="_blank"
             rel="noreferrer"
             onClick={() => logInterest(listing, "whatsapp")}
-            className="btn-secondary flex-1 !px-2 text-sm"
+            aria-label="וואטסאפ"
+            className="w-11 h-11 rounded-full border border-sage-dark/50 bg-white flex items-center justify-center shrink-0"
           >
-            💬 וואטסאפ
+            <MessageCircle size={17} strokeWidth={2.25} className="text-olive" />
           </a>
-          <button onClick={handleInterest} className="btn-olive flex-1 !px-2 text-sm">
-            📩 אני מעוניין
-          </button>
+          <a
+            href={`tel:${listing.contact_phone}`}
+            onClick={() => logInterest(listing, "call")}
+            aria-label="התקשר"
+            className="w-11 h-11 rounded-full border border-sage-dark/50 bg-white flex items-center justify-center shrink-0"
+          >
+            <Phone size={17} strokeWidth={2.25} className="text-olive" />
+          </a>
         </div>
       )}
 
@@ -118,16 +121,21 @@ export default function ListingCard({ listing, distanceKm, onExpressInterest, sh
             <option value="inTalks">בתהליך סגירה</option>
             <option value="closed">נסגר</option>
           </select>
-          <Link
-            href={`/${listing.type}?edit=${listing.id}`}
+          <button
+            type="button"
+            onClick={() => openWizard(listing.type, listing.id)}
             className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-olive text-olive"
           >
             ✏️ ערוך מודעה
-          </Link>
+          </button>
         </div>
       ) : (
         <span className={statusChipClass(listing.status)}>{STATUS_LABELS[listing.status] || listing.status}</span>
       )}
+
+      <p className="text-[10px] text-forest/40 leading-snug border-t border-sage-dark/20 pt-2">
+        {LEGAL_CONTENT.listingNotice}
+      </p>
     </div>
   );
 }

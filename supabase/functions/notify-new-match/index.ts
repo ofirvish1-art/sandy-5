@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
       if (percent === null || percent < INSTANT_ALERT_THRESHOLD) continue;
 
       const text =
-        "נמצאה התאמה בחולית! מודעה התואמת את הדרישות שלך פורסמה עכשיו. כנס לאפליקציה לצפייה בפרטים ויצירת קשר.";
+        "נמצאה התאמה בסאנדיט! מודעה התואמת את הדרישות שלך פורסמה עכשיו. כנס לאפליקציה לצפייה בפרטים ויצירת קשר.";
 
       if (newOwner?.phone) await sendWhatsApp(newOwner.phone, text).catch((e) => console.error(e));
       if (other.users?.phone) await sendWhatsApp(other.users.phone, text).catch((e) => console.error(e));
