@@ -1,93 +1,150 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
 
-body {
-  @apply bg-cream text-forest;
-}
+@custom-variant dark (&:is(.dark *));
 
-.card {
-  @apply bg-white rounded-2xl border border-sage-dark/40 shadow-sm;
-}
+@theme inline {
+  --font-sans: var(--font-heebo), 'Heebo', system-ui, sans-serif;
 
-.btn-primary {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-sage px-5 py-3 text-forest font-bold text-base active:scale-[0.98] transition disabled:opacity-50;
-}
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
 
-.btn-olive {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-olive px-5 py-3 text-white font-bold text-base active:scale-[0.98] transition disabled:opacity-50;
-}
+  /* Hulit brand tokens */
+  --color-olive: var(--olive);
+  --color-olive-foreground: var(--olive-foreground);
+  --color-sage: var(--sage);
+  --color-sage-foreground: var(--sage-foreground);
+  --color-sage-soft: var(--sage-soft);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
 
-.btn-secondary {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-cream px-5 py-3 text-forest font-semibold text-base border border-sage-dark active:scale-[0.98] transition;
-}
-
-.btn-ghost {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-forest/70 font-semibold text-sm;
-}
-
-.field-label {
-  @apply block text-sm font-semibold text-forest mb-1.5;
-}
-
-.field-input {
-  @apply w-full rounded-xl border border-sage-dark/60 bg-white px-4 py-3 text-base text-forest focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent;
-}
-
-.chip {
-  @apply inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-bold;
-}
-
-.chip-active {
-  @apply chip bg-status-active/60 text-olive;
-}
-
-.chip-pending {
-  @apply chip bg-status-pending/50 text-forest;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
 }
 
-.chip-closed {
-  @apply chip bg-status-closed/60 text-forest/60;
+:root {
+  color-scheme: light;
+
+  --background: oklch(0.982 0.006 145);
+  --foreground: oklch(0.24 0.02 150);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.24 0.02 150);
+
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.24 0.02 150);
+
+  /* Dark olive green #2C3E2E */
+  --primary: oklch(0.34 0.035 148);
+  --primary-foreground: oklch(0.98 0.006 145);
+
+  /* Light sage green #A8C297 */
+  --secondary: oklch(0.8 0.06 140);
+  --secondary-foreground: oklch(0.28 0.03 150);
+
+  --muted: oklch(0.95 0.008 145);
+  --muted-foreground: oklch(0.5 0.02 150);
+
+  --accent: oklch(0.9 0.05 142);
+  --accent-foreground: oklch(0.3 0.03 150);
+
+  --destructive: oklch(0.58 0.2 27);
+  --destructive-foreground: oklch(0.98 0 0);
+
+  --border: oklch(0.9 0.01 145);
+  --input: oklch(0.9 0.01 145);
+  --ring: oklch(0.6 0.06 145);
+
+  --radius: 0.9rem;
+
+  /* Hulit brand */
+  --olive: oklch(0.34 0.035 148);
+  --olive-foreground: oklch(0.98 0.006 145);
+  --sage: oklch(0.8 0.06 140);
+  --sage-foreground: oklch(0.28 0.03 150);
+  --sage-soft: oklch(0.93 0.03 142);
+  --success: oklch(0.62 0.13 150);
+  --warning: oklch(0.78 0.14 85);
 }
 
-.step-dot {
-  @apply w-2.5 h-2.5 rounded-full bg-sage-dark/40;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply bg-background;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }
 
-.step-dot-active {
-  @apply w-2.5 h-2.5 rounded-full bg-olive;
+/* Hide scrollbars for horizontal carousels */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
-/* Item 10: animated hourglass in the home header — flips over, with a
-   grain of "sand" that drips mid-flip. */
-@keyframes hourglass-flip {
-  0%, 35% { transform: rotate(0deg); }
-  50%, 85% { transform: rotate(180deg); }
-  100% { transform: rotate(360deg); }
+/* Toast slide-up entrance */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
-.animate-hourglass {
-  display: inline-block;
-  transform-origin: 50% 50%;
-  animation: hourglass-flip 3.6s ease-in-out infinite;
-}
-@keyframes hourglass-sand {
-  0%, 42% { opacity: 0; transform: translateY(-3px) scale(0.6); }
-  50% { opacity: 1; transform: translateY(0) scale(1); }
-  58%, 100% { opacity: 0; transform: translateY(3px) scale(0.6); }
-}
-.animate-hourglass-sand {
-  animation: hourglass-sand 3.6s ease-in-out infinite;
+.animate-toast-in {
+  animation: toast-in 0.28s ease-out;
 }
 
-/* Item 2: the publish wizard opens as an instant bottom sheet. */
-@keyframes sheet-up {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
+/* Leaflet: strip default marker box so our custom pins render cleanly */
+.sandit-marker {
+  background: transparent;
+  border: none;
 }
-.animate-sheet-up {
-  animation: sheet-up 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+.leaflet-container {
+  background: var(--color-muted);
+  font-family: inherit;
 }
-
-.pill {
-  @apply inline-flex items-center gap-1 rounded-full border border-sage-dark/40 bg-cream px-2.5 py-1 text-[11px] font-semibold text-forest/70;
+/* Clean, on-brand tooltip for pin labels */
+.leaflet-tooltip.leaflet-tooltip-top {
+  border: none;
+  border-radius: 0.625rem;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-foreground);
+  background: var(--color-card);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.12);
+}
+.leaflet-tooltip-top::before {
+  border-top-color: var(--color-card);
 }
