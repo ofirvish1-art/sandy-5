@@ -3,7 +3,7 @@
 import { Check, Eye, EyeOff, Loader2 } from "lucide-react"
 import { useState } from "react"
 import { useAuth } from "@/components/auth-provider"
-import { signIn, signUp } from "@/lib/supabase/auth"
+import { requestPasswordReset, signIn, signUp } from "@/lib/supabase/auth"
 import { BottomSheet } from "./bottom-sheet"
 import { BRAND, type LegalSection, LEGAL_PRIVACY, LEGAL_TERMS } from "./data"
 import { SanditLogo } from "./logo"
@@ -27,7 +27,7 @@ const PASSWORD_RE = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d\W]{8,15}$/
 // Basic email format check.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-type Mode = "signup" | "login"
+type Mode = "signup" | "login" | "reset"
 
 export function OnboardingScreen() {
   const [mode, setMode] = useState<Mode>("signup")
@@ -41,21 +41,27 @@ export function OnboardingScreen() {
   const [doc, setDoc] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /** Masked address the reset link went to, shown on success. */
+  const [resetSentTo, setResetSentTo] = useState<string | null>(null)
   const { setProfile } = useAuth()
 
   const isSignup = mode === "signup"
+  const isReset = mode === "reset"
   const passwordValid = PASSWORD_RE.test(password)
   const emailValid = EMAIL_RE.test(email.trim())
   const allChecked = CHECKS.every((c) => checked[c.id])
 
   const valid = isSignup
     ? !!name.trim() && emailValid && phone.trim().length >= 9 && passwordValid && allChecked
-    : loginId.trim().length > 0 && password.length > 0
+    : isReset
+      ? loginId.trim().length > 0
+      : loginId.trim().length > 0 && password.length > 0
 
   function switchMode(next: Mode) {
     setMode(next)
     setPassword("")
     setError(null)
+    setResetSentTo(null)
   }
 
   // On success nothing is called back: onAuthStateChange fires, AuthProvider
@@ -64,6 +70,17 @@ export function OnboardingScreen() {
     if (!valid || submitting) return
     setSubmitting(true)
     setError(null)
+
+    if (isReset) {
+      const reset = await requestPasswordReset(loginId)
+      setSubmitting(false)
+      if (!reset.ok) {
+        setError(reset.error)
+        return
+      }
+      setResetSentTo(reset.data.sentTo)
+      return
+    }
 
     const result = isSignup
       ? await signUp({
@@ -98,30 +115,40 @@ export function OnboardingScreen() {
       </div>
 
       <div className="rounded-3xl bg-card p-5 text-right text-foreground">
-        {/* Login / Sign-up toggle */}
-        <div className="mb-4 flex rounded-2xl bg-muted p-1">
-          {(
-            [
-              { key: "signup" as const, label: "הרשמה" },
-              { key: "login" as const, label: "התחברות" },
-            ]
-          ).map((o) => (
-            <button
-              key={o.key}
-              type="button"
-              onClick={() => switchMode(o.key)}
-              className={`flex-1 rounded-xl py-2 text-sm font-bold transition-colors ${
-                mode === o.key ? "bg-card text-primary shadow-sm" : "text-muted-foreground"
-              }`}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
+        {/* Login / Sign-up toggle — hidden while resetting, which is its own task */}
+        {!isReset && (
+          <div className="mb-4 flex rounded-2xl bg-muted p-1">
+            {(
+              [
+                { key: "signup" as const, label: "הרשמה" },
+                { key: "login" as const, label: "התחברות" },
+              ]
+            ).map((o) => (
+              <button
+                key={o.key}
+                type="button"
+                onClick={() => switchMode(o.key)}
+                className={`flex-1 rounded-xl py-2 text-sm font-bold transition-colors ${
+                  mode === o.key ? "bg-card text-primary shadow-sm" : "text-muted-foreground"
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        )}
 
-        <h2 className="mb-4 text-lg font-extrabold">{isSignup ? "הרשמה מהירה" : "כניסה לחשבון"}</h2>
+        <h2 className="mb-4 text-lg font-extrabold">
+          {isSignup ? "הרשמה מהירה" : isReset ? "איפוס סיסמה" : "כניסה לחשבון"}
+        </h2>
 
         <div className="space-y-3">
+          {isReset && (
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              נשלח קישור לאיפוס הסיסמה לכתובת האימייל של החשבון. איפוס באמצעות SMS עדיין לא זמין.
+            </p>
+          )}
+
           {isSignup ? (
             <>
               <input
@@ -162,39 +189,51 @@ export function OnboardingScreen() {
             />
           )}
 
-          <div>
-            <div className="relative">
-              <input
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSubmit()
-                }}
-                type={showPassword ? "text" : "password"}
-                placeholder="סיסמה"
-                className={`w-full rounded-xl border bg-card px-3 py-3 pe-11 text-right text-sm outline-none focus:border-primary ${
-                  password && !passwordValid ? "border-destructive" : "border-border"
-                }`}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((s) => !s)}
-                aria-label={showPassword ? "הסתר סיסמה" : "הצג סיסמה"}
-                className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-              >
-                {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-              </button>
+          {/* No password field while resetting — that is the whole point. */}
+          {!isReset && (
+            <div>
+              <div className="relative">
+                <input
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSubmit()
+                  }}
+                  type={showPassword ? "text" : "password"}
+                  placeholder="סיסמה"
+                  className={`w-full rounded-xl border bg-card px-3 py-3 pe-11 text-right text-sm outline-none focus:border-primary ${
+                    password && !passwordValid ? "border-destructive" : "border-border"
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((s) => !s)}
+                  aria-label={showPassword ? "הסתר סיסמה" : "הצג סיסמה"}
+                  className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                >
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
+              {isSignup && (
+                <p
+                  className={`mt-1.5 text-xs font-semibold ${
+                    password && !passwordValid ? "text-destructive" : "text-muted-foreground"
+                  }`}
+                >
+                  הסיסמה חייבת להכיל 8–15 תווים, ולשלב אותיות ומספרים.
+                </p>
+              )}
+              {mode === "login" && (
+                <button
+                  type="button"
+                  onClick={() => switchMode("reset")}
+                  className="mt-2 text-xs font-bold text-primary underline"
+                >
+                  שכחתי סיסמה
+                </button>
+              )}
             </div>
-            {isSignup && (
-              <p
-                className={`mt-1.5 text-xs font-semibold ${
-                  password && !passwordValid ? "text-destructive" : "text-muted-foreground"
-                }`}
-              >
-                הסיסמה חייבת להכיל 8–15 תווים, ולשלב אותיות ומספרים.
-              </p>
-            )}
-          </div>
+          )}
         </div>
 
         {isSignup && (
@@ -246,6 +285,12 @@ export function OnboardingScreen() {
           </p>
         )}
 
+        {resetSentTo && (
+          <p className="mt-4 rounded-xl bg-success/15 px-3 py-2.5 text-xs font-bold leading-relaxed text-success">
+            שלחנו קישור לאיפוס סיסמה אל {resetSentTo}. בדוק את תיבת הדואר שלך.
+          </p>
+        )}
+
         <button
           type="button"
           disabled={!valid || submitting}
@@ -256,22 +301,40 @@ export function OnboardingScreen() {
           {submitting
             ? isSignup
               ? "יוצר חשבון…"
-              : "מתחבר…"
+              : isReset
+                ? "שולח…"
+                : "מתחבר…"
             : isSignup
               ? "הרשמה וכניסה למערכת"
-              : "התחברות"}
+              : isReset
+                ? resetSentTo
+                  ? "שלח שוב"
+                  : "שלח קישור לאיפוס"
+                : "התחברות"}
         </button>
 
         {/* Switch link */}
         <p className="mt-4 text-center text-sm text-muted-foreground">
-          {isSignup ? "כבר יש לך חשבון?" : "אין לך חשבון עדיין?"}{" "}
-          <button
-            type="button"
-            onClick={() => switchMode(isSignup ? "login" : "signup")}
-            className="font-bold text-primary underline"
-          >
-            {isSignup ? "התחברות" : "הרשמה"}
-          </button>
+          {isReset ? (
+            <button
+              type="button"
+              onClick={() => switchMode("login")}
+              className="font-bold text-primary underline"
+            >
+              חזרה להתחברות
+            </button>
+          ) : (
+            <>
+              {isSignup ? "כבר יש לך חשבון?" : "אין לך חשבון עדיין?"}{" "}
+              <button
+                type="button"
+                onClick={() => switchMode(isSignup ? "login" : "signup")}
+                className="font-bold text-primary underline"
+              >
+                {isSignup ? "התחברות" : "הרשמה"}
+              </button>
+            </>
+          )}
         </p>
       </div>
 

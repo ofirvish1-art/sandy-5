@@ -1,11 +1,8 @@
 "use client"
 
 import { Bell, MessageSquareHeart } from "lucide-react"
-import { useEffect, useState } from "react"
 import { useAuth } from "@/components/auth-provider"
-import { useListings } from "@/components/listings-provider"
-import { supabase } from "@/lib/supabase/client"
-import { getLastSeen } from "@/lib/supabase/notifications"
+import { useNotifications } from "@/components/notifications-provider"
 import { BRAND } from "./data"
 import { SanditLogo } from "./logo"
 
@@ -17,39 +14,11 @@ export function Header({
   onNotifications: () => void
 }) {
   const { profile } = useAuth()
-  const { listings, opportunities } = useListings()
-  const [unseenContacts, setUnseenContacts] = useState(0)
+  // Real unread rows now, rather than a last-seen timestamp in localStorage.
+  const { unreadCount } = useNotifications()
 
   // Contractors greet each other by first name.
   const firstName = profile?.name?.trim().split(/\s+/)[0] ?? ""
-
-  const myListingIds = listings.filter((l) => l.owner === "me").map((l) => l.id)
-  const myIdsKey = myListingIds.join(",")
-
-  // The dot must mean something: only contacts on your own listings, by
-  // someone other than you, since you last opened the panel.
-  useEffect(() => {
-    if (!profile || myListingIds.length === 0) {
-      setUnseenContacts(0)
-      return
-    }
-    let active = true
-    supabase
-      .from("interest_events")
-      .select("id", { count: "exact", head: true })
-      .in("listing_id", myListingIds)
-      .neq("viewer_user_id", profile.id)
-      .gt("created_at", getLastSeen() ?? "1970-01-01T00:00:00Z")
-      .then(({ count }) => {
-        if (active) setUnseenContacts(count ?? 0)
-      })
-    return () => {
-      active = false
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile, myIdsKey])
-
-  const hasUnseen = unseenContacts > 0 || opportunities.length > 0
 
   return (
     <header className="bg-primary text-primary-foreground rounded-b-[2rem] px-5 pt-4 pb-7">
@@ -67,13 +36,16 @@ export function Header({
           <button
             type="button"
             onClick={onNotifications}
-            aria-label={hasUnseen ? "התראות חדשות" : "התראות"}
+            aria-label={unreadCount > 0 ? `התראות — ${unreadCount} חדשות` : "התראות"}
             className="relative flex size-11 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-white/20"
           >
             <Bell className="size-5" />
-            {/* Only shown when there is genuinely something unseen. */}
-            {hasUnseen && (
-              <span className="absolute end-2.5 top-2.5 size-2 rounded-full bg-sage ring-2 ring-primary" />
+            {/* Count badge — same shape and type scale as the filter button's
+                count, ringed against the primary header like the old dot. */}
+            {unreadCount > 0 && (
+              <span className="absolute -end-0.5 -top-0.5 flex size-5 items-center justify-center rounded-full bg-success text-xs font-bold text-white ring-2 ring-primary">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
             )}
           </button>
         </div>

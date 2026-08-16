@@ -50,7 +50,7 @@ export function AdsScreen({
           return false
         }
         if (!listingMatchesFilters(l, filters, specificDate)) return false
-        if (inProgressOnly && !(l.matched || l.status === "closing")) return false
+        if (inProgressOnly && !l.inProgress) return false
         return true
       })
   }, [allListings, segment, filters, specificDate, inProgressOnly])

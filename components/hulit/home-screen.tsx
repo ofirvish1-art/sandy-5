@@ -39,8 +39,8 @@ function useMetrics(listings: Listing[]) {
 
   // מודעות באזור — listings that actually have coordinates to place on the map
   const onMap = listings.filter((l) => l.lat != null && l.lng != null).length
-  // מודעות בתהליך — anything currently being handled
-  const inProgress = listings.filter((l) => l.matched || l.status === "closing").length
+  // מודעות בתהליך — listings with a real interaction behind them
+  const inProgress = listings.filter((l) => l.inProgress).length
   // המודעות שלי
   const mine = listings.filter((l) => l.owner === "me").length
 

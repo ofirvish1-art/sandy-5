@@ -44,6 +44,14 @@ export function contactMessage(material: string, quantityCubic: number): string 
 }
 
 /**
+ * The other direction: the listing OWNER getting back to someone who showed
+ * interest. Same idea, opposite point of view.
+ */
+export function replyMessage(material: string): string {
+  return `שלום, ראיתי שהתעניינת במודעה שלי (${material}) ב${BRAND.he}. אפשר לתאם?`
+}
+
+/**
  * Fire-and-forget: a failure here must never stop the call or WhatsApp from
  * opening. The user's intent is to make contact, not to write a log row.
  */

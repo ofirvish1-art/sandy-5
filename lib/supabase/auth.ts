@@ -187,6 +187,74 @@ export async function signOut(): Promise<void> {
 }
 
 /* -------------------------------------------------------------------------- */
+/*  Password reset                                                            */
+/* -------------------------------------------------------------------------- */
+
+/** "yuval@gmail.com" → "yu***@gmail.com" — enough to recognise, not to harvest. */
+function maskEmail(email: string): string {
+  const [local, domain] = email.split("@")
+  if (!domain) return email
+  const head = local.slice(0, 2)
+  return `${head}${"*".repeat(Math.max(local.length - 2, 1))}@${domain}`
+}
+
+/**
+ * Sends Supabase's built-in reset email.
+ *
+ * Login accepts a phone number, so people will type one here too. A phone is
+ * resolved to the account's email and the link goes there — but an account
+ * with no email cannot be recovered this way at all, and says so plainly
+ * rather than pretending something was sent. SMS reset needs a provider that
+ * isn't set up yet.
+ */
+export async function requestPasswordReset(
+  identifier: string,
+): Promise<AuthResult<{ sentTo: string }>> {
+  const raw = identifier.trim()
+  if (!raw) return fail("יש להזין כתובת אימייל או מספר טלפון.")
+
+  let email = raw.toLowerCase()
+
+  if (!isEmailIdentifier(raw)) {
+    const phone = normalisePhone(raw)
+    const { data: row, error } = await supabase
+      .from("users")
+      .select("email")
+      .eq("phone", phone)
+      .not("auth_user_id", "is", null)
+      .maybeSingle()
+
+    if (error) {
+      console.error("phone->email lookup failed", error)
+      return fail("לא הצלחנו לאתר את החשבון. נסה שוב.")
+    }
+    if (!row) {
+      return fail("לא נמצא חשבון עם מספר הטלפון הזה.")
+    }
+    if (!row.email) {
+      return fail(
+        "לחשבון הזה רשום מספר טלפון בלבד, ואיפוס סיסמה ב‑SMS עדיין לא זמין. פנה אלינו כדי לשחזר את החשבון.",
+      )
+    }
+    email = row.email.toLowerCase()
+  }
+
+  const redirectTo = typeof window !== "undefined" ? window.location.origin : undefined
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+
+  if (error) return fail(toHebrewAuthError(error.message))
+
+  return succeed({ sentTo: maskEmail(email) })
+}
+
+/** Sets a new password for the session created by the recovery link. */
+export async function updatePassword(newPassword: string): Promise<AuthResult<true>> {
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  if (error) return fail(toHebrewAuthError(error.message))
+  return succeed(true as const)
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Account settings                                                          */
 /* -------------------------------------------------------------------------- */
 

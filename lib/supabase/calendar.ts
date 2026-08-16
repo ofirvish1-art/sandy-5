@@ -171,6 +171,70 @@ export async function updateCalendarEvent(
   return { event: data, error: null }
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Firing due reminders                                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Turns reminders that have come due into in-app notifications.
+ *
+ * `reminder_sent_at` is the guard against duplicates: a reminder is only ever
+ * fired once, and the column is stamped in the same pass. This runs on the
+ * client, so it catches up whenever the app is opened — which is exactly when
+ * an in-app notification can be seen. Delivery while the app is CLOSED is a
+ * separate mechanism (web push); this one is not a substitute for it.
+ *
+ * Returns how many reminders fired.
+ */
+export async function fireDueReminders(userId: string): Promise<number> {
+  const nowIso = new Date().toISOString()
+
+  const { data: due, error } = await supabase
+    .from("calendar_events")
+    .select("id, title, event_date, reminder_at")
+    .eq("user_id", userId)
+    .not("reminder_at", "is", null)
+    .lte("reminder_at", nowIso)
+    .is("reminder_sent_at", null)
+
+  if (error) {
+    console.error("fireDueReminders lookup failed", error)
+    return 0
+  }
+  if (!due || due.length === 0) return 0
+
+  let fired = 0
+  for (const event of due) {
+    // Stamp first. If the notification insert then fails the user misses one
+    // reminder; if we inserted first and the stamp failed, they would get the
+    // same reminder on every single app open until it succeeded.
+    const { data: claimed, error: claimError } = await supabase
+      .from("calendar_events")
+      .update({ reminder_sent_at: nowIso })
+      .eq("id", event.id)
+      .is("reminder_sent_at", null)
+      .select("id")
+
+    if (claimError || !claimed || claimed.length === 0) continue
+
+    const { error: insertError } = await supabase.from("notifications").insert({
+      user_id: userId,
+      type: "calendar_reminder",
+      title: event.title,
+      body: event.event_date,
+      calendar_event_id: event.id,
+    })
+
+    if (insertError) {
+      console.error("reminder notification insert failed", insertError)
+      continue
+    }
+    fired += 1
+  }
+
+  return fired
+}
+
 export async function deleteCalendarEvent(id: string): Promise<string | null> {
   const { error } = await supabase.from("calendar_events").delete().eq("id", id)
   if (error) {

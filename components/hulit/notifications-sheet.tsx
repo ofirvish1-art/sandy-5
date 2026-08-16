@@ -1,23 +1,18 @@
 "use client"
 
-import { MessageCircle, Phone, Send, Sparkles } from "lucide-react"
-import { useEffect, useState } from "react"
-import { useAuth } from "@/components/auth-provider"
+import { BellRing, Inbox, Send, Sparkles } from "lucide-react"
+import { useEffect } from "react"
 import { useListings } from "@/components/listings-provider"
-import {
-  CHANNEL_LABELS,
-  type ContactNotification,
-  fetchContactNotifications,
-  markAllSeen,
-} from "@/lib/supabase/notifications"
+import { useNotifications } from "@/components/notifications-provider"
+import type { NotificationType } from "@/lib/supabase/notifications"
 import { BottomSheet } from "./bottom-sheet"
 import type { Listing } from "./data"
 
-const CHANNEL_ICONS = {
-  interest: Send,
-  whatsapp: MessageCircle,
-  call: Phone,
-} as const
+const TYPE_ICONS: Record<NotificationType, typeof Send> = {
+  interest_received: Inbox,
+  interest_sent: Send,
+  calendar_reminder: BellRing,
+}
 
 export function NotificationsSheet({
   open,
@@ -28,32 +23,24 @@ export function NotificationsSheet({
   onClose: () => void
   onOpenListing?: (l: Listing) => void
 }) {
-  const { profile } = useAuth()
   const { listings, opportunities } = useListings()
-  const [contacts, setContacts] = useState<ContactNotification[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { items, loading, error, refresh, markRead } = useNotifications()
 
-  const myListingIds = listings.filter((l) => l.owner === "me").map((l) => l.id)
-
+  // Opening the panel is what counts as "seen" — refresh first so anything
+  // that arrived while the sheet was shut is included before clearing.
   useEffect(() => {
-    if (!open || !profile) return
+    if (!open) return
     let active = true
-    setLoading(true)
-    fetchContactNotifications(profile.id, myListingIds).then((result) => {
-      if (!active) return
-      setContacts(result.items)
-      setError(result.error)
-      setLoading(false)
-      markAllSeen()
+    refresh().then(() => {
+      if (active) markRead()
     })
     return () => {
       active = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, profile, myListingIds.join(",")])
+  }, [open])
 
-  const isEmpty = !loading && contacts.length === 0 && opportunities.length === 0
+  const isEmpty = !loading && items.length === 0 && opportunities.length === 0
 
   return (
     <BottomSheet open={open} onClose={onClose} title="התראות">
@@ -72,28 +59,49 @@ export function NotificationsSheet({
           </p>
         )}
 
-        {contacts.length > 0 && (
+        {items.length > 0 && (
           <section className="space-y-2">
-            <h4 className="text-sm font-extrabold text-foreground">פניות למודעות שלך</h4>
-            {contacts.map((n) => {
-              const Icon = CHANNEL_ICONS[n.channel]
-              return (
-                <div
-                  key={n.id}
-                  className="flex items-center justify-between gap-3 rounded-2xl bg-muted/60 p-3.5 text-right"
-                >
+            <h4 className="text-sm font-extrabold text-foreground">עדכונים</h4>
+            {items.map((n) => {
+              const Icon = TYPE_ICONS[n.type]
+              const listing = n.listing_id ? listings.find((l) => l.id === n.listing_id) : undefined
+              const clickable = Boolean(listing)
+
+              const inner = (
+                <>
                   <span className="shrink-0 text-[11px] font-bold text-muted-foreground">{n.relative}</span>
                   <div className="flex min-w-0 items-center gap-2">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-foreground">
-                        {n.viewerName} {CHANNEL_LABELS[n.channel]}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">{n.listingMaterial}</p>
+                      <p className="truncate text-sm font-bold text-foreground">{n.headline}</p>
+                      <p className="truncate text-xs text-muted-foreground">{n.detail}</p>
                     </div>
                     <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sage-soft text-primary">
                       <Icon className="size-4" />
                     </span>
                   </div>
+                </>
+              )
+
+              // Unread rows carry the same sage accent used elsewhere for "new".
+              const base = `flex w-full items-center justify-between gap-3 rounded-2xl p-3.5 text-right ${
+                n.read_at ? "bg-muted/60" : "bg-sage-soft"
+              }`
+
+              return clickable ? (
+                <button
+                  key={n.id}
+                  type="button"
+                  onClick={() => {
+                    onClose()
+                    onOpenListing?.(listing as Listing)
+                  }}
+                  className={`${base} transition-colors hover:bg-muted`}
+                >
+                  {inner}
+                </button>
+              ) : (
+                <div key={n.id} className={base}>
+                  {inner}
                 </div>
               )
             })}
