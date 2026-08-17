@@ -9,6 +9,7 @@ import { useAuth } from "@/components/auth-provider"
 import type { ListingStatus } from "@/components/hulit/data"
 import { haversineKm } from "@/lib/cities"
 import { findMatchesForUser, type MatchBand } from "@/lib/matching"
+import { supabase } from "@/lib/supabase/client"
 import {
   fetchListings,
   updateListingStatus,
@@ -60,10 +61,29 @@ export function ListingsProvider({ children }: { children: React.ReactNode }) {
     )
   }, [])
 
+  // Every listing this user has actually engaged with, either direction.
+  const [interactions, setInteractions] = useState<{ listingId: string; viewerId: string | null }[]>([])
+
   const refresh = useCallback(async () => {
-    const result = await fetchListings({ userId })
+    const [result, events] = await Promise.all([
+      fetchListings({ userId }),
+      supabase.from("interest_events").select("listing_id, viewer_user_id"),
+    ])
+
     setListings(result.listings)
     setError(result.error)
+
+    if (events.error) {
+      console.error("interest_events fetch failed", events.error)
+    } else {
+      setInteractions(
+        (events.data ?? []).map((e) => ({
+          listingId: e.listing_id as string,
+          viewerId: (e.viewer_user_id as string | null) ?? null,
+        })),
+      )
+    }
+
     setLoading(false)
   }, [userId])
 
@@ -90,10 +110,27 @@ export function ListingsProvider({ children }: { children: React.ReactNode }) {
   // did it — the `matches` table exists but was never populated.
   const { decorated, opportunities, withoutCoords } = useMemo(() => {
     const { opportunities: opps, matchedIds } = findMatchesForUser(listings, userId)
+
+    // "In progress" = a real interaction happened, in either direction:
+    // I reached out about it, or it's mine and somebody reached out to me.
+    // A listing I've closed is finished, not in progress.
+    const myListingIds = new Set(listings.filter((l) => l.owner === "me").map((l) => l.id))
+    const engaged = new Set<string>()
+    for (const { listingId, viewerId } of interactions) {
+      if (!userId) break
+      if (viewerId === userId) engaged.add(listingId)
+      else if (myListingIds.has(listingId)) engaged.add(listingId)
+    }
+
     return {
       decorated: listings.map((l) => ({
         ...l,
         matched: matchedIds.has(l.id),
+        // A stranger's listing being "closing" is their business, not my queue —
+        // only my own listings count on status alone.
+        inProgress:
+          l.status !== "closed" &&
+          (engaged.has(l.id) || (l.owner === "me" && l.status === "closing")),
         distanceKm:
           viewerCoords && l.lat != null && l.lng != null
             ? Math.round(haversineKm(viewerCoords.lat, viewerCoords.lng, l.lat, l.lng))
@@ -102,7 +139,7 @@ export function ListingsProvider({ children }: { children: React.ReactNode }) {
       opportunities: opps,
       withoutCoords: listings.filter((l) => l.lat == null || l.lng == null).length,
     }
-  }, [listings, userId, viewerCoords])
+  }, [listings, userId, viewerCoords, interactions])
 
   const value = useMemo<ListingsState>(
     () => ({

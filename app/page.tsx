@@ -4,6 +4,8 @@ import { RefreshCw } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useAuth } from "@/components/auth-provider"
 import { ListingsProvider } from "@/components/listings-provider"
+import { NotificationsProvider } from "@/components/notifications-provider"
+import { RefreshOnFocus } from "@/components/refresh-on-focus"
 import { signOut } from "@/lib/supabase/auth"
 import { AdsScreen } from "@/components/hulit/ads-screen"
 import { BottomNav, type TabKey } from "@/components/hulit/bottom-nav"
@@ -12,18 +14,20 @@ import type { Listing, ListingType } from "@/components/hulit/data"
 import { FeedbackModal } from "@/components/hulit/feedback-modal"
 import { Header } from "@/components/hulit/header"
 import { HomeScreen } from "@/components/hulit/home-screen"
+import { LiveNotificationToasts } from "@/components/hulit/live-notification-toast"
 import { MapScreen } from "@/components/hulit/map-screen"
 import { NotificationsSheet } from "@/components/hulit/notifications-sheet"
 import { OnboardingScreen } from "@/components/hulit/onboarding-screen"
 import { PostDetailModal } from "@/components/hulit/post-detail-modal"
 import { ProfileScreen } from "@/components/hulit/profile-screen"
+import { ResetPasswordScreen } from "@/components/hulit/reset-password-screen"
 import { WizardModal } from "@/components/hulit/wizard-modal"
 
 export default function Page() {
   // "Onboarded" is now a real Supabase session with a matching profile row,
   // not a local boolean. Both halves must be present: an auth account with
   // no profile can't own listings.
-  const { session, profile, loading: authLoading } = useAuth()
+  const { session, profile, loading: authLoading, recovering } = useAuth()
   const onboarded = Boolean(session && profile)
 
   const [tab, setTab] = useState<TabKey>("home")
@@ -33,7 +37,6 @@ export default function Page() {
   const [activeListing, setActiveListing] = useState<Listing | null>(null)
   const [adsFocus, setAdsFocus] = useState<"inprogress" | undefined>(undefined)
   const [adsSegment, setAdsSegment] = useState<"all" | "mine">("all")
-  const [refreshKey, setRefreshKey] = useState(0)
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -43,27 +46,10 @@ export default function Page() {
     toastTimer.current = setTimeout(() => setToast(null), 2600)
   }, [])
 
-  // Auto data refresh whenever the app/tab regains focus (#6)
-  useEffect(() => {
-    if (!onboarded) return
-    let last = Date.now()
-    const refresh = () => {
-      // Debounce so a quick blur/focus doesn't double-fire
-      if (Date.now() - last < 800) return
-      last = Date.now()
-      setRefreshKey((k) => k + 1)
-      showToast("רועננו מודעות, התראות ואירועים")
-    }
-    const onVisible = () => {
-      if (document.visibilityState === "visible") refresh()
-    }
-    window.addEventListener("focus", refresh)
-    document.addEventListener("visibilitychange", onVisible)
-    return () => {
-      window.removeEventListener("focus", refresh)
-      document.removeEventListener("visibilitychange", onVisible)
-    }
-  }, [onboarded, showToast])
+  // Refresh-on-focus lives in <RefreshOnFocus> below, inside the provider, so
+  // it can refetch rather than remount. Any sheet holding user input pauses
+  // it — see the component for why that matters.
+  const aSheetIsOpen = wizardType !== null || activeListing !== null || feedbackOpen || notificationsOpen
 
   // Restoring a session from storage takes a beat — showing the login form
   // first would flash it at people who are already signed in.
@@ -71,6 +57,16 @@ export default function Page() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-primary text-sm text-primary-foreground/80">
         טוען…
+      </main>
+    )
+  }
+
+  // Arrived from a reset email: Supabase has signed them in, but the only
+  // thing they should be able to do is choose a new password.
+  if (recovering) {
+    return (
+      <main className="mx-auto min-h-screen max-w-md bg-primary">
+        <ResetPasswordScreen />
       </main>
     )
   }
@@ -104,7 +100,9 @@ export default function Page() {
   }
 
   return (
-    <ListingsProvider key={refreshKey}>
+    <ListingsProvider>
+    <NotificationsProvider>
+    <RefreshOnFocus paused={aSheetIsOpen} onRefreshed={showToast} />
     <main className="mx-auto min-h-screen max-w-md bg-background pb-28">
       <Header
         onFeedback={() => setFeedbackOpen(true)}
@@ -159,6 +157,7 @@ export default function Page() {
           setActiveListing(l)
         }}
       />
+      <LiveNotificationToasts />
       <FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
       <NotificationsSheet
         open={notificationsOpen}
@@ -177,6 +176,7 @@ export default function Page() {
         </div>
       )}
     </main>
+    </NotificationsProvider>
     </ListingsProvider>
   )
 }

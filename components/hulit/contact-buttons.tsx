@@ -6,11 +6,23 @@
 import { Check, Loader2, MessageCircle, Phone, Send } from "lucide-react"
 import { useState } from "react"
 import { useCurrentUserId } from "@/components/auth-provider"
+import { useListings } from "@/components/listings-provider"
+import { useNotifications } from "@/components/notifications-provider"
 import { contactMessage, logInterest, telLink, waLink } from "@/lib/supabase/contact"
 import type { Listing } from "./data"
 
 export function ContactButtons({ listing, size = "md" }: { listing: Listing; size?: "sm" | "md" }) {
   const viewerId = useCurrentUserId()
+  const { refresh: refreshListings } = useListings()
+  const { refresh: refreshNotifications } = useNotifications()
+
+  // A call or WhatsApp tap is an interaction too, so it belongs in the
+  // "in progress" queue and notifies the owner just like אני מעוניין does.
+  async function log(channel: "call" | "whatsapp") {
+    await logInterest(listing.id, viewerId, channel)
+    refreshListings()
+    refreshNotifications()
+  }
 
   const phone = listing.contactPhone ?? ""
   const tel = telLink(phone)
@@ -30,7 +42,7 @@ export function ContactButtons({ listing, size = "md" }: { listing: Listing; siz
     <>
       <a
         href={tel}
-        onClick={() => logInterest(listing.id, viewerId, "call")}
+        onClick={() => log("call")}
         className={`flex ${box} items-center justify-center rounded-xl bg-muted text-foreground`}
         aria-label={`התקשר אל ${listing.ownerName}`}
       >
@@ -40,7 +52,7 @@ export function ContactButtons({ listing, size = "md" }: { listing: Listing; siz
         href={wa}
         target="_blank"
         rel="noreferrer"
-        onClick={() => logInterest(listing.id, viewerId, "whatsapp")}
+        onClick={() => log("whatsapp")}
         className={`flex ${box} items-center justify-center rounded-xl bg-success/15 text-success`}
         aria-label={`שלח וואטסאפ אל ${listing.ownerName}`}
       >
@@ -57,6 +69,8 @@ export function ContactButtons({ listing, size = "md" }: { listing: Listing; siz
  */
 export function InterestButton({ listing }: { listing: Listing }) {
   const viewerId = useCurrentUserId()
+  const { refresh: refreshListings } = useListings()
+  const { refresh: refreshNotifications } = useNotifications()
   const [state, setState] = useState<"idle" | "sending" | "sent">("idle")
   const [error, setError] = useState<string | null>(null)
 
@@ -72,6 +86,10 @@ export function InterestButton({ listing }: { listing: Listing }) {
       return
     }
     setState("sent")
+    // The database trigger has now written notifications for both sides and
+    // this listing has entered the in-progress queue — reflect both at once.
+    refreshListings()
+    refreshNotifications()
   }
 
   if (state === "sent") {

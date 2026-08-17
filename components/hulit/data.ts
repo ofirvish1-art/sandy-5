@@ -201,6 +201,8 @@ export type Listing = {
   ownerName: string
   status: ListingStatus
   matched?: boolean
+  /** In the user's active queue: they reached out, or someone reached out to them. */
+  inProgress?: boolean
   createdAt: string
   details?: string
   mapX?: number

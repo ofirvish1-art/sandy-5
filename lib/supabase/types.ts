@@ -123,6 +123,20 @@ export type NotificationAttemptRow = {
   updated_at: string
 }
 
+/** Added by migration 014 — the in-app notification centre. */
+export type NotificationRow = {
+  id: string
+  user_id: string
+  type: "interest_received" | "interest_sent" | "calendar_reminder"
+  title: string
+  body: string | null
+  listing_id: string | null
+  calendar_event_id: string | null
+  actor_user_id: string | null
+  read_at: string | null
+  created_at: string
+}
+
 export type FeedbackRow = {
   id: string
   user_id: string | null
@@ -148,6 +162,7 @@ export type Database = {
       interest_events: Table<InterestEventRow>
       calendar_events: Table<CalendarEventRow>
       notification_attempts: Table<NotificationAttemptRow>
+      notifications: Table<NotificationRow>
       feedback: Table<FeedbackRow>
     }
     Views: Record<string, never>

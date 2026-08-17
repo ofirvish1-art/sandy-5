@@ -1,87 +1,110 @@
-// What the header bell shows: who reached out about your listings, and which
-// new listings match yours.
+// The in-app notification centre.
 //
-// Both come from data that already exists — interest_events for contacts, and
-// the client-side matcher for matches — so nothing new is stored. "Unread" is
-// kept in localStorage as a last-seen timestamp, which is enough for a badge
-// without inventing a per-user notifications table.
+// Rows come from public.notifications (migration 014). RLS already restricts
+// them to the signed-in user, so these queries don't re-filter for security —
+// only for clarity.
+//
+// The database stores facts, not sentences: `title` is the listing material,
+// `body` is the other party's name. The Hebrew wording is composed here, for
+// the same reason as migration 012 — Hebrew literals don't survive a paste
+// into the SQL editor, and wording is presentation anyway.
 
 import { supabase } from "./client"
 import { formatRelativeTime } from "./listings"
 
-export type ContactNotification = {
+export type NotificationType = "interest_received" | "interest_sent" | "calendar_reminder"
+
+export type NotificationRow = {
   id: string
-  kind: "contact"
-  channel: "call" | "whatsapp" | "interest"
-  listingId: string
-  listingMaterial: string
-  viewerName: string
-  createdAt: string
+  user_id: string
+  type: NotificationType
+  title: string
+  body: string | null
+  listing_id: string | null
+  calendar_event_id: string | null
+  actor_user_id: string | null
+  read_at: string | null
+  created_at: string
+}
+
+export type AppNotification = NotificationRow & {
+  /** Composed headline, e.g. "אבי הובלות מעוניין במודעה שלך". */
+  headline: string
+  /** Secondary line, usually the listing material. */
+  detail: string
   relative: string
 }
 
-const LAST_SEEN_KEY = "sandit_notifications_last_seen"
+function compose(row: NotificationRow): { headline: string; detail: string } {
+  const other = (row.body ?? "").trim() || "משתמש סנדיט"
+  const subject = (row.title ?? "").trim()
 
-export function getLastSeen(): string | null {
-  if (typeof window === "undefined") return null
-  return window.localStorage.getItem(LAST_SEEN_KEY)
+  switch (row.type) {
+    case "interest_received":
+      return { headline: `${other} מעוניין במודעה שלך`, detail: subject }
+    case "interest_sent":
+      return { headline: `סימנת עניין במודעה של ${other}`, detail: subject }
+    case "calendar_reminder":
+      return { headline: "תזכורת מהיומן", detail: subject }
+  }
 }
 
-export function markAllSeen(): void {
-  if (typeof window === "undefined") return
-  window.localStorage.setItem(LAST_SEEN_KEY, new Date().toISOString())
+export function decorate(row: NotificationRow): AppNotification {
+  const { headline, detail } = compose(row)
+  return { ...row, headline, detail, relative: formatRelativeTime(row.created_at) }
+}
+
+export async function fetchNotifications(
+  userId: string,
+): Promise<{ items: AppNotification[]; error: string | null }> {
+  const { data, error } = await supabase
+    .from("notifications")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(60)
+
+  if (error) {
+    console.error("fetchNotifications failed", error)
+    return { items: [], error: "טעינת ההתראות נכשלה." }
+  }
+  return { items: (data as unknown as NotificationRow[]).map(decorate), error: null }
 }
 
 /**
- * Interest events on listings owned by `userId`. Own taps are excluded — being
- * told you contacted yourself is noise.
+ * The interested party's contact details, for the live toast.
+ *
+ * The notification row already carries their name and the listing material;
+ * only the phone needs looking up, and only when a toast is actually shown.
  */
-export async function fetchContactNotifications(
-  userId: string,
-  myListingIds: string[],
-): Promise<{ items: ContactNotification[]; error: string | null }> {
-  if (myListingIds.length === 0) return { items: [], error: null }
-
+export async function fetchActorContact(
+  actorUserId: string,
+): Promise<{ name: string; phone: string } | null> {
   const { data, error } = await supabase
-    .from("interest_events")
-    .select("id, channel, created_at, listing_id, viewer_user_id, listings(material_type), users(name)")
-    .in("listing_id", myListingIds)
-    .order("created_at", { ascending: false })
-    .limit(50)
+    .from("users")
+    .select("name, phone")
+    .eq("id", actorUserId)
+    .maybeSingle()
 
-  if (error) {
-    console.error("fetchContactNotifications failed", error)
-    return { items: [], error: "טעינת ההתראות נכשלה." }
+  if (error || !data) {
+    console.error("fetchActorContact failed", error)
+    return null
   }
-
-  type Row = {
-    id: string
-    channel: "call" | "whatsapp" | "interest"
-    created_at: string
-    listing_id: string
-    viewer_user_id: string | null
-    listings?: { material_type: string | null } | null
-    users?: { name: string | null } | null
-  }
-
-  const items = (data as unknown as Row[])
-    .filter((r) => r.viewer_user_id !== userId)
-    .map((r) => ({
-      id: r.id,
-      kind: "contact" as const,
-      channel: r.channel,
-      listingId: r.listing_id,
-      listingMaterial: r.listings?.material_type ?? "מודעה",
-      viewerName: r.users?.name?.trim() || "משתמש סנדיט",
-      createdAt: r.created_at,
-      relative: formatRelativeTime(r.created_at),
-    }))
-
-  return { items, error: null }
+  return { name: data.name ?? "", phone: data.phone ?? "" }
 }
 
-export const CHANNEL_LABELS: Record<ContactNotification["channel"], string> = {
-  interest: "סימן שהוא מעוניין",
-  whatsapp: "פנה בוואטסאפ",
-  call: "התקשר",
+/** Marks everything currently unread as read. Returns how many changed. */
+export async function markAllRead(userId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from("notifications")
+    .update({ read_at: new Date().toISOString() })
+    .eq("user_id", userId)
+    .is("read_at", null)
+    .select("id")
+
+  if (error) {
+    console.error("markAllRead failed", error)
+    return 0
+  }
+  return data?.length ?? 0
 }

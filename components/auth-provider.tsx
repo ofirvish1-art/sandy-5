@@ -15,6 +15,13 @@ type AuthState = {
   profile: UserRow | null
   /** True until the initial session lookup has settled. */
   loading: boolean
+  /**
+   * True when this session came from a password-reset email. Supabase signs
+   * the user in to let them set a new password, so without this flag they'd
+   * land straight in the app and never be asked for one.
+   */
+  recovering: boolean
+  clearRecovering: () => void
   refreshProfile: () => Promise<void>
   setProfile: (profile: UserRow) => void
 }
@@ -25,6 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfileState] = useState<UserRow | null>(null)
   const [loading, setLoading] = useState(true)
+  const [recovering, setRecovering] = useState(false)
 
   const loadProfile = useCallback(async (authUserId: string | undefined) => {
     if (!authUserId) {
@@ -55,8 +63,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (active) setLoading(false)
     })
 
-    const { data: subscription } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
+    const { data: subscription } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
       if (!active) return
+      if (event === "PASSWORD_RECOVERY") setRecovering(true)
+      if (event === "SIGNED_OUT") setRecovering(false)
       setSession(nextSession)
       await loadProfile(nextSession?.user.id)
       if (active) setLoading(false)
@@ -72,9 +82,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await loadProfile(session?.user.id)
   }, [loadProfile, session])
 
+  const clearRecovering = useCallback(() => setRecovering(false), [])
+
   const value = useMemo<AuthState>(
-    () => ({ session, profile, loading, refreshProfile, setProfile: setProfileState }),
-    [session, profile, loading, refreshProfile],
+    () => ({
+      session,
+      profile,
+      loading,
+      recovering,
+      clearRecovering,
+      refreshProfile,
+      setProfile: setProfileState,
+    }),
+    [session, profile, loading, recovering, clearRecovering, refreshProfile],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
